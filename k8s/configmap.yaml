@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+
+metadata:
+  name: backend-config
+
+data:
+  APP_NAME: "Baytak Foundation API"
+
+  DATABASE_HOST: "db-service"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "charity"
+
+  CORS_ORIGINS: "http://localhost:8080,http://localhost:5173"
+
+  FRONTEND_APP_URL: "http://localhost:8080"
+
+  PASSWORD_RESET_MINUTES: "30"
+
+  REPORT_STORAGE_PATH: "/app/reports"
+
+  SCHEDULER_ENABLED: "true"
+
+  SMTP_HOST: "smtp.gmail.com"
+  SMTP_PORT: "587"
+  SMTP_STARTTLS: "true"

@@ -1,0 +1,35 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+
+metadata:
+  name: baytak-ingress
+  namespace: {{ .Values.namespace.name }}
+  # annotations:
+  #   nginx.ingress.kubernetes.io/rewrite-target: /$2
+  #   nginx.ingress.kubernetes.io/use-regex: "true"
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+
+  rules:
+    - host: {{ .Values.ingress.host }}
+
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Values.ingress.paths.none.serviceName }}
+
+                port:
+                  number: {{ .Values.ingress.paths.none.servicePort }}
+
+          - path: /api
+            pathType: Prefix
+
+            backend:
+              service:
+                name: {{ .Values.ingress.paths.api.serviceName }}
+
+                port:
+                  number: {{ .Values.ingress.paths.api.servicePort }}
