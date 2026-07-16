@@ -1,39 +1,35 @@
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     app_name: str = "Baytak Foundation API"
     environment: str = "development"
-    database_url: str = "postgresql+psycopg://charity:charity@localhost:5432/charity"
-    jwt_secret_key: str = Field(
-        "change-this-local-development-secret-before-production",
-        min_length=32,
-    )
-    jwt_algorithm: str = "HS256"
-    access_token_minutes: int = 30
-    refresh_token_days: int = 14
-    password_reset_minutes: int = 30
-    cors_origins: str = "http://localhost:5173,http://localhost:4173"
-    frontend_app_url: str = "http://localhost:8080"
-    bootstrap_admin_email: str = "admin@charity.local"
-    bootstrap_admin_password: str = "ChangeMe123!"
-    report_storage_path: str = "reports"
-    scheduler_enabled: bool = True
-    smtp_host: str | None = None
-    smtp_port: int = 587
-    smtp_username: str | None = None
-    smtp_password: str | None = None
-    smtp_from: str | None = None
-    smtp_starttls: bool = True
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    database_host: str = "localhost"
+    database_port: int = 5432
+    database_name: str = "charity"
+    database_user: str = "charity"
+    database_password: str = "charity"
 
+    @computed_field
     @property
-    def allowed_origins(self) -> list[str]:
-        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+    def database_url(self) -> str:
+        return (
+            f"postgresql+psycopg://"
+            f"{self.database_user}:{self.database_password}"
+            f"@{self.database_host}:{self.database_port}/"
+            f"{self.database_name}"
+        )
+
+    jwt_secret_key: str = Field(..., min_length=32)
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="ignore",
+    )
 
 
 @lru_cache
