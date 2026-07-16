@@ -79,7 +79,7 @@ backendConfigmap:
     SMTP_STARTTLS: "true"
     FRONTEND_APP_URL: "http://frontend-service:80"
     PASSWORD_RESET_MINUTES: "30"
-    ALLOWED_ORIGINS: "http://frontend-service,http://localhost:3000"
+    ALLOWED_ORIGINS: '["http://frontend-service","http://localhost:3000"]'
 
 
 frontendConfigmap:
