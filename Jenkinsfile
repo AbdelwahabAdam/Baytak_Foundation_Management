@@ -71,11 +71,10 @@ pipeline {
                         returnStdout: true
                     ).trim()
 
-                    sshagent(['ec2-key']) {
-
+                    sshagent(credentials: ['ec2-key']) {
                         sh """
                         ssh -o StrictHostKeyChecking=no ubuntu@${SERVER_IP} '
-                            cd /opt/baytak &&
+                            cd /opt/baytak
 
                             helm upgrade --install baytak ./helm \
                                 --namespace baytak \
@@ -83,7 +82,6 @@ pipeline {
                                 --set frontend.image.tag=frontend-${IMAGE_TAG}
                         '
                         """
-
                     }
                 }
             }
