@@ -18,13 +18,13 @@
     - group_vars/vault.yml
     
   roles:
-    # - docker
-    # - git
-    # - helm
-    # - k3s
-    # - nginx-ingress
-    # - cert-manager
-    # - alertmanager
-    # - prometheus
-    # - grafana
+    - docker
+    - git
+    - helm
+    - k3s
+    - nginx-ingress
+    - cert-manager
+    - alertmanager
+    - prometheus
+    - grafana
     - transfer_files

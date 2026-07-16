@@ -17,6 +17,9 @@
       controller:
         service:
           type: NodePort
+          nodePorts:
+            http: 31080
+            https: 31443
 
 ###############################################################################
 # Wait until the Deployment is Available
