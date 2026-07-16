@@ -66,25 +66,33 @@ pipeline {
             steps {
                 script {
                     sh '''
-                    pwd
-                    ls -la
-                    ls -la terraform
+                        pwd
+                        ls -la
+                        cat ansible/inventory.ini
                     '''
+
                     def SERVER_IP = sh(
-                        script: "terraform -chdir=terraform output -raw server_public_ip",
+                        script: """
+                            awk '/^\\[baytak\\]/{getline; print \$1}' ansible/inventory.ini
+                        """,
                         returnStdout: true
                     ).trim()
 
+                    if (!SERVER_IP) {
+                        error "SERVER_IP is empty. Check inventory.ini for [baytak] section"
+                    }
+
+                    echo "Deploying to ${SERVER_IP}"
+
                     sshagent(credentials: ['ec2-key']) {
                         sh """
-                        ssh -o StrictHostKeyChecking=no ubuntu@${SERVER_IP} '
-                            cd /opt/baytak
-
-                            helm upgrade --install baytak ./helm \
-                                --namespace baytak \
-                                --set backend.image.tag=backend-${IMAGE_TAG} \
-                                --set frontend.image.tag=frontend-${IMAGE_TAG}
-                        '
+                            ssh -o StrictHostKeyChecking=no ubuntu@${SERVER_IP} '
+                                cd /opt/baytak || exit 1
+                                helm upgrade --install baytak ./helm \\
+                                    --namespace baytak \\
+                                    --set backend.image.tag=backend-${IMAGE_TAG} \\
+                                    --set frontend.image.tag=frontend-${IMAGE_TAG}
+                            '
                         """
                     }
                 }
