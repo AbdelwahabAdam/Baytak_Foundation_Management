@@ -71,13 +71,16 @@ backendConfigmap:
     DATABASE_HOST: db-service
     DATABASE_PORT: "5432"
     DATABASE_NAME: charity
-
-    APP_NAME: Baytak Foundation
+    APP_NAME: "Baytak Foundation"
+    ENVIRONMENT: "production"
+    JWT_ALGORITHM: "HS256"
+    ACCESS_TOKEN_MINUTES: "30"
+    REFRESH_TOKEN_DAYS: "30"
     SCHEDULER_ENABLED: "true"
     SMTP_HOST: smtp.gmail.com
     SMTP_PORT: "587"
     SMTP_STARTTLS: "true"
-    FRONTEND_APP_URL: "http://frontend-service:80"
+    FRONTEND_APP_URL: "http://frontend-service"
     PASSWORD_RESET_MINUTES: "30"
     ALLOWED_ORIGINS: '["http://frontend-service","http://localhost:3000"]'
 
