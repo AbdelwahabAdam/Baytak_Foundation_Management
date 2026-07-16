@@ -1,0 +1,128 @@
+##   replicas: {{ .Values.backend.replicas }}
+
+app:
+  name: "Baytak Foundation"
+  
+backend:
+  replicas: 2
+  image:
+    repository: abdelwahabadam/baytak
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  port: 8000
+  configMap: backend-config
+  secret: backend-secret
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+frontend:
+  replicas: 2
+ image:
+    repository: abdelwahabadam/baytak
+    tag: latest
+    pullPolicy: IfNotPresent
+  port: 80
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+postgres:
+  replicas: 1
+  image: postgres:16-alpine
+  port: 5432
+  dbName: charity
+  userName: charity
+  password: password
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+  pv:
+    storage: 5Gi
+  pvc:
+    storage: 5Gi
+
+namespace:
+  name: baytak
+
+backend-configmap:
+  data:
+    POSTGRES_DB: charity
+    APP_NAME: Baytak Foundation
+    SCHEDULER_ENABLED: true
+    SMTP_HOST: smtp.gmail.com
+    SMTP_PORT: 587
+    SMTP_STARTTLS: true
+    FRONTEND_APP_URL: http://localhost:8080
+    PASSWORD_RESET_MINUTES: 30
+
+
+frontend-configmap:
+data:
+  APP_NAME: Baytak Foundation
+  VITE_APP_NAME: Baytak Foundation
+  VITE_APP_SHORT_NAME: Baytak
+  VITE_APP_TAGLINE: Community charity management
+  VITE_APP_DESCRIPTION: Transparent, people-first charity operations.
+  VITE_APP_CONTACT_EMAIL: hopaasd1997@gmail.com
+  VITE_APP_LOGO_PATH: /baytak-logo.png
+
+  VITE_NAVIGATION_TITLE: Workspace
+
+  VITE_TAB_OVERVIEW: Overview
+  VITE_TAB_DONORS: Donors
+  VITE_TAB_DONATIONS: Donations
+  VITE_TAB_DONATION_TYPES: Donation types
+  VITE_TAB_CUSTODY: Custody
+  VITE_TAB_APPROVALS: Approvals
+  VITE_TAB_REPORTS: Reports
+  VITE_TAB_SCHEDULED_REPORTS: Scheduled reports
+  VITE_TAB_USERS: Users
+  VITE_TAB_SETTINGS: Settings
+
+  VITE_COLOR_PRIMARY: "#1765a7"
+  VITE_COLOR_PRIMARY_DARK: "#104e85"
+  VITE_COLOR_ACCENT: "#2a78ba"
+  VITE_COLOR_SIDEBAR: "#123b65"
+  VITE_COLOR_BACKGROUND: "#f5f8fc"
+  VITE_COLOR_SURFACE: "#ffffff"
+  VITE_COLOR_TEXT: "#162b3d"
+  VITE_COLOR_MUTED_TEXT: "#607285"
+  VITE_COLOR_SUCCESS: "#167044"
+  VITE_COLOR_WARNING: "#a86b09"
+  VITE_COLOR_DANGER: "#ae3f34"
+
+  VITE_DEFAULT_LOCALE: ar
+
+ingress:
+  enabled: true
+  className: nginx
+  host: baytak.local
+  paths:
+    none:
+      serviceName: frontend-service
+      servicePort: 80
+    api:
+      serviceName: backend-service
+      servicePort: 8000
+
+issuer:
+  spec:
+    email: "hopaasd1997@gmail.com"
+    server: "https://acme-v02.api.letsencrypt.org/directory"
+
+secret:
+  name: backend-secret
