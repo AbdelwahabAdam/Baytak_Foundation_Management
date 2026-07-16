@@ -25,3 +25,6 @@ override.tf.json
 terraform.rc
 crash.log
 crash.*.log
+
+
+ansible/inventory.ini

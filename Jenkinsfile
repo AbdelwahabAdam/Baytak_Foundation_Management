@@ -68,31 +68,31 @@ pipeline {
                     sh '''
                         pwd
                         ls -la
-                        cat ansible/inventory.ini
+                        echo "Instance IP:"
+                        cat instance_ip
                     '''
 
                     def SERVER_IP = sh(
-                        script: """
-                            awk '/^\\[baytak\\]/{getline; print \$1}' ansible/inventory.ini
-                        """,
+                        script: "cat instance_ip",
                         returnStdout: true
                     ).trim()
 
                     if (!SERVER_IP) {
-                        error "SERVER_IP is empty. Check inventory.ini for [baytak] section"
+                        error "SERVER_IP is empty. Check the instance_ip file."
                     }
 
                     echo "Deploying to ${SERVER_IP}"
 
                     sshagent(credentials: ['ec2-key']) {
                         sh """
-                            ssh -o StrictHostKeyChecking=no ubuntu@${SERVER_IP} '
-                                cd /opt/baytak || exit 1
-                                helm upgrade --install baytak ./helm \\
-                                    --namespace baytak \\
-                                    --set backend.image.tag=backend-${IMAGE_TAG} \\
-                                    --set frontend.image.tag=frontend-${IMAGE_TAG}
-                            '
+                            ssh -o StrictHostKeyChecking=no ubuntu@${SERVER_IP} <<'EOF'
+        cd /opt/baytak || exit 1
+
+        helm upgrade --install baytak ./helm \
+            --namespace baytak \
+            --set backend.image.tag=backend-${IMAGE_TAG} \
+            --set frontend.image.tag=frontend-${IMAGE_TAG}
+        EOF
                         """
                     }
                 }

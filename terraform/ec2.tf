@@ -121,3 +121,8 @@ EOF
   }
 
 }
+
+resource "local_file" "instance_ip" {
+  filename = "${path.module}/../instance_ip"
+  content  = aws_instance.baytak_server.public_ip
+}
