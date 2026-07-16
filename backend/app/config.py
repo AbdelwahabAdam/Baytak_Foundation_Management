@@ -24,6 +24,11 @@ class Settings(BaseSettings):
             f"{self.database_name}"
         )
 
+    allowed_origins: list[str] = Field(
+        default=["*"],
+        alias="ALLOWED_ORIGINS",
+    )
+
     jwt_secret_key: str = Field(..., min_length=32)
 
     model_config = SettingsConfigDict(

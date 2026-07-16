@@ -17,3 +17,4 @@ data:
   SMTP_STARTTLS: {{ .Values.backendConfigmap.data.SMTP_STARTTLS | quote }}
   FRONTEND_APP_URL: {{ .Values.backendConfigmap.data.FRONTEND_APP_URL | quote }}
   PASSWORD_RESET_MINUTES: {{ .Values.backendConfigmap.data.PASSWORD_RESET_MINUTES | quote }}
+  ALLOWED_ORIGINS: {{ .Values.backendConfigmap.data.ALLOWED_ORIGINS | quote }}
