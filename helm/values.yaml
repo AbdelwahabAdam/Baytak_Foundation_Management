@@ -2,7 +2,13 @@
 
 app:
   name: "Baytak Foundation"
-  
+
+namespace:
+  name: {{ .Release.Namespace }}
+
+metadata:
+  namespace: {{ .Release.Namespace }}
+
 backend:
   replicas: 2
   image:
@@ -28,6 +34,7 @@ frontend:
       tag: latest
       pullPolicy: IfNotPresent
   port: 80
+  configMap: frontend-config
   resources:
     requests:
       cpu: "100m"
@@ -55,8 +62,6 @@ postgres:
   pvc:
     storage: 5Gi
 
-namespace:
-  name: baytak
 
 backendConfigmap:
   data:
