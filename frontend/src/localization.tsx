@@ -292,7 +292,7 @@ const arabic: Record<string, string> = {
   'About us': 'من نحن',
   'Our projects': 'مشاريعنا',
   'Contact': 'تواصل معنا',
-  'Together, We Restore Hope.': 'معاً، نُعيد الأمل.',
+  'Together, We Restore Hope.': 'معا، نُعيد الأمل.',
   'Every donation creates a better future. Baytak Foundation brings people together around practical, compassionate community support.': 'كل تبرع يصنع مستقبلاً أفضل. تجمع مؤسسة بيتك الناس حول دعم مجتمعي عملي ورحيم.',
   'Donate': 'تبرع',
   'Our Projects': 'مشاريعنا',
