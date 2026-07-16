@@ -6,11 +6,11 @@ metadata:
   namespace: {{ .Values.namespace.name }}
 
 data:
-  POSTGRES_DB: {{ .Values.backendConfigmap.data.POSTGRES_DB }}
-  APP_NAME: {{ .Values.backendConfigmap.data.APP_NAME }}
-  SCHEDULER_ENABLED: {{ .Values.backendConfigmap.data.SCHEDULER_ENABLED }}
-  SMTP_HOST: {{ .Values.backendConfigmap.data.SMTP_HOST }}
-  SMTP_PORT: {{ .Values.backendConfigmap.data.SMTP_PORT }}
-  SMTP_STARTTLS: {{ .Values.backendConfigmap.data.SMTP_STARTTLS }}
-  FRONTEND_APP_URL: {{ .Values.backendConfigmap.data.FRONTEND_APP_URL }}
-  PASSWORD_RESET_MINUTES: {{ .Values.backendConfigmap.data.PASSWORD_RESET_MINUTES }}
+  POSTGRES_DB: {{ .Values.backendConfigmap.data.POSTGRES_DB | quote }}
+  APP_NAME: {{ .Values.backendConfigmap.data.APP_NAME | quote }}
+  SCHEDULER_ENABLED: {{ .Values.backendConfigmap.data.SCHEDULER_ENABLED | quote }}
+  SMTP_HOST: {{ .Values.backendConfigmap.data.SMTP_HOST | quote }}
+  SMTP_PORT: {{ .Values.backendConfigmap.data.SMTP_PORT | quote }}
+  SMTP_STARTTLS: {{ .Values.backendConfigmap.data.SMTP_STARTTLS | quote }}
+  FRONTEND_APP_URL: {{ .Values.backendConfigmap.data.FRONTEND_APP_URL | quote }}
+  PASSWORD_RESET_MINUTES: {{ .Values.backendConfigmap.data.PASSWORD_RESET_MINUTES | quote }}
