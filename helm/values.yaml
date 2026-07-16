@@ -71,41 +71,41 @@ backendConfigmap:
 
 
 frontendConfigmap:
-data:
-  APP_NAME: Baytak Foundation
-  VITE_APP_NAME: Baytak Foundation
-  VITE_APP_SHORT_NAME: Baytak
-  VITE_APP_TAGLINE: Community charity management
-  VITE_APP_DESCRIPTION: Transparent, people-first charity operations.
-  VITE_APP_CONTACT_EMAIL: hopaasd1997@gmail.com
-  VITE_APP_LOGO_PATH: /baytak-logo.png
+  data:
+    APP_NAME: Baytak Foundation
+    VITE_APP_NAME: Baytak Foundation
+    VITE_APP_SHORT_NAME: Baytak
+    VITE_APP_TAGLINE: Community charity management
+    VITE_APP_DESCRIPTION: Transparent, people-first charity operations.
+    VITE_APP_CONTACT_EMAIL: hopaasd1997@gmail.com
+    VITE_APP_LOGO_PATH: /baytak-logo.png
 
-  VITE_NAVIGATION_TITLE: Workspace
+    VITE_NAVIGATION_TITLE: Workspace
 
-  VITE_TAB_OVERVIEW: Overview
-  VITE_TAB_DONORS: Donors
-  VITE_TAB_DONATIONS: Donations
-  VITE_TAB_DONATION_TYPES: Donation types
-  VITE_TAB_CUSTODY: Custody
-  VITE_TAB_APPROVALS: Approvals
-  VITE_TAB_REPORTS: Reports
-  VITE_TAB_SCHEDULED_REPORTS: Scheduled reports
-  VITE_TAB_USERS: Users
-  VITE_TAB_SETTINGS: Settings
+    VITE_TAB_OVERVIEW: Overview
+    VITE_TAB_DONORS: Donors
+    VITE_TAB_DONATIONS: Donations
+    VITE_TAB_DONATION_TYPES: Donation types
+    VITE_TAB_CUSTODY: Custody
+    VITE_TAB_APPROVALS: Approvals
+    VITE_TAB_REPORTS: Reports
+    VITE_TAB_SCHEDULED_REPORTS: Scheduled reports
+    VITE_TAB_USERS: Users
+    VITE_TAB_SETTINGS: Settings
 
-  VITE_COLOR_PRIMARY: "#1765a7"
-  VITE_COLOR_PRIMARY_DARK: "#104e85"
-  VITE_COLOR_ACCENT: "#2a78ba"
-  VITE_COLOR_SIDEBAR: "#123b65"
-  VITE_COLOR_BACKGROUND: "#f5f8fc"
-  VITE_COLOR_SURFACE: "#ffffff"
-  VITE_COLOR_TEXT: "#162b3d"
-  VITE_COLOR_MUTED_TEXT: "#607285"
-  VITE_COLOR_SUCCESS: "#167044"
-  VITE_COLOR_WARNING: "#a86b09"
-  VITE_COLOR_DANGER: "#ae3f34"
+    VITE_COLOR_PRIMARY: "#1765a7"
+    VITE_COLOR_PRIMARY_DARK: "#104e85"
+    VITE_COLOR_ACCENT: "#2a78ba"
+    VITE_COLOR_SIDEBAR: "#123b65"
+    VITE_COLOR_BACKGROUND: "#f5f8fc"
+    VITE_COLOR_SURFACE: "#ffffff"
+    VITE_COLOR_TEXT: "#162b3d"
+    VITE_COLOR_MUTED_TEXT: "#607285"
+    VITE_COLOR_SUCCESS: "#167044"
+    VITE_COLOR_WARNING: "#a86b09"
+    VITE_COLOR_DANGER: "#ae3f34"
 
-  VITE_DEFAULT_LOCALE: ar
+    VITE_DEFAULT_LOCALE: ar
 
 ingress:
   enabled: true
