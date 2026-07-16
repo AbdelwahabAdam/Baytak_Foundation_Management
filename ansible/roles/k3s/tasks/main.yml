@@ -1,0 +1,175 @@
+---
+# SPDX-License-Identifier: MIT-0
+# tasks file for k3s
+
+###############################################################################
+# Update package cache
+###############################################################################
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+###############################################################################
+# Install k3s
+###############################################################################
+
+- name: Download k3s install script
+  ansible.builtin.get_url:
+    url: https://get.k3s.io
+    dest: /tmp/install-k3s.sh
+    mode: "0755"
+
+- name: Install k3s
+  ansible.builtin.command:
+    cmd: /tmp/install-k3s.sh server --docker --disable traefik
+    creates: /usr/local/bin/k3s
+
+###############################################################################
+# Enable service
+###############################################################################
+
+- name: Enable and start k3s
+  ansible.builtin.service:
+    name: k3s
+    enabled: true
+    state: started
+
+###############################################################################
+# Wait for kubeconfig
+###############################################################################
+
+- name: Wait for kubeconfig
+  ansible.builtin.wait_for:
+    path: /etc/rancher/k3s/k3s.yaml
+    timeout: 300
+
+###############################################################################
+# Wait for Kubernetes API
+###############################################################################
+
+- name: Wait for Kubernetes API
+  kubernetes.core.k8s_info:
+    kubeconfig: /etc/rancher/k3s/k3s.yaml
+    api_version: v1
+    kind: Namespace
+    wait: true
+    wait_timeout: 300
+
+###############################################################################
+# Wait for node Ready
+###############################################################################
+
+- name: Wait for node to become Ready
+  kubernetes.core.k8s_info:
+    kubeconfig: /etc/rancher/k3s/k3s.yaml
+    api_version: v1
+    kind: Node
+    wait: true
+    wait_condition:
+      type: Ready
+      status: "True"
+    wait_timeout: 300
+
+###############################################################################
+# Get nodes
+###############################################################################
+
+- name: Get cluster nodes
+  kubernetes.core.k8s_info:
+    kubeconfig: /etc/rancher/k3s/k3s.yaml
+    api_version: v1
+    kind: Node
+  register: k3s_nodes
+
+- name: Display cluster nodes
+  ansible.builtin.debug:
+    msg: |
+      {% for node in k3s_nodes.resources %}
+      ----------------------------------------
+      Name: {{ node.metadata.name }}
+
+      Ready:
+      {{
+        node.status.conditions
+        | selectattr('type', 'equalto', 'Ready')
+        | map(attribute='status')
+        | first
+      }}
+
+      Kubernetes Version:
+      {{ node.status.nodeInfo.kubeletVersion }}
+
+      OS:
+      {{ node.status.nodeInfo.operatingSystem }}
+
+      Architecture:
+      {{ node.status.nodeInfo.architecture }}
+
+      {% endfor %}
+
+###############################################################################
+# Wait for CoreDNS
+###############################################################################
+
+- name: Wait for CoreDNS deployment
+  kubernetes.core.k8s_info:
+    kubeconfig: /etc/rancher/k3s/k3s.yaml
+    api_version: apps/v1
+    kind: Deployment
+    namespace: kube-system
+    name: coredns
+    wait: true
+    wait_condition:
+      type: Available
+      status: "True"
+    wait_timeout: 300
+
+###############################################################################
+# Wait for Local Path Provisioner
+###############################################################################
+
+- name: Wait for local-path-provisioner
+  kubernetes.core.k8s_info:
+    kubeconfig: /etc/rancher/k3s/k3s.yaml
+    api_version: apps/v1
+    kind: Deployment
+    namespace: kube-system
+    name: local-path-provisioner
+    wait: true
+    wait_condition:
+      type: Available
+      status: "True"
+    wait_timeout: 300
+
+###############################################################################
+# Read node token
+###############################################################################
+
+- name: Read node token
+  ansible.builtin.slurp:
+    src: /var/lib/rancher/k3s/server/node-token
+  register: node_token
+
+- name: Display node token
+  ansible.builtin.debug:
+    msg: "{{ node_token.content | b64decode }}"
+
+###############################################################################
+# Final validation
+###############################################################################
+
+- name: Validate cluster
+  ansible.builtin.assert:
+    that:
+      - k3s_nodes.resources | length > 0
+      - >
+        (
+          k3s_nodes.resources[0].status.conditions
+          | selectattr('type', 'equalto', 'Ready')
+          | map(attribute='status')
+          | first
+        ) == 'True'
+    success_msg: "k3s cluster is healthy."
+    fail_msg: "k3s cluster is not healthy."

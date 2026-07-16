@@ -9,5 +9,19 @@ backend/reports/
 frontend/node_modules/
 frontend/dist/
 frontend/.env
-ansible/
-terraform/
+
+# Terraform state files
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars
+*.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+crash.log
+crash.*.log

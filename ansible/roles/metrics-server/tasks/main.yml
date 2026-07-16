@@ -1,0 +1,52 @@
+# ---
+# # tasks file for metrics-server
+
+# - name: Add Metrics Server Helm repository
+#   kubernetes.core.helm_repository:
+#     name: metrics-server
+#     repo_url: https://kubernetes-sigs.github.io/metrics-server/
+
+# - name: Install Metrics Server
+#   kubernetes.core.helm:
+#     name: metrics-server
+#     chart_ref: metrics-server/metrics-server
+#     release_namespace: kube-system
+#     create_namespace: true
+#     wait: true
+#     kubeconfig: /etc/rancher/k3s/k3s.yaml
+
+# - name: Verify Metrics Server pods
+#   ansible.builtin.command:
+#     cmd: kubectl --kubeconfig /etc/rancher/k3s/k3s.yaml get pods -n kube-system
+#   register: metrics_server_pods
+#   changed_when: false
+
+# - name: Display Metrics Server pods
+#   ansible.builtin.debug:
+#     var: metrics_server_pods.stdout_lines
+
+# - name: Verify Metrics Server service
+#   ansible.builtin.command:
+#     cmd: kubectl --kubeconfig /etc/rancher/k3s/k3s.yaml get svc -n kube-system
+#   register: metrics_server_services
+#   changed_when: false
+
+# - name: Display Metrics Server services
+#   ansible.builtin.debug:
+#     var: metrics_server_services.stdout_lines
+
+# - name: Verify Metrics Server API
+#   ansible.builtin.command:
+#     cmd: kubectl --kubeconfig /etc/rancher/k3s/k3s.yaml top nodes
+#   register: metrics_server_top
+#   changed_when: false
+
+# - name: Display Metrics Server output
+#   ansible.builtin.debug:
+#     var: metrics_server_top.stdout_lines
+
+# - name: Ensure Metrics Server is running
+#   ansible.builtin.assert:
+#     that:
+#       - "'Running' in metrics_server_pods.stdout"
+#     fail_msg: "Metrics Server installation failed."

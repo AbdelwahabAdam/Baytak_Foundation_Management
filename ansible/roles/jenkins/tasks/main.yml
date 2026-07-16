@@ -1,0 +1,52 @@
+---
+# tasks file for jenkins
+
+- name: Add Jenkins Helm repository
+  kubernetes.core.helm_repository:
+    name: jenkins
+    repo_url: https://charts.jenkins.io
+
+- name: Install Jenkins
+  kubernetes.core.helm:
+    name: jenkins
+    chart_ref: jenkins/jenkins
+    release_namespace: jenkins
+    create_namespace: true
+    wait: true
+    kubeconfig: /etc/rancher/k3s/k3s.yaml
+
+- name: Verify Jenkins pods
+  ansible.builtin.command:
+    cmd: kubectl --kubeconfig /etc/rancher/k3s/k3s.yaml get pods -n jenkins
+  register: jenkins_pods
+  changed_when: false
+
+- name: Display Jenkins pods
+  ansible.builtin.debug:
+    var: jenkins_pods.stdout_lines
+
+- name: Verify Jenkins services
+  ansible.builtin.command:
+    cmd: kubectl --kubeconfig /etc/rancher/k3s/k3s.yaml get svc -n jenkins
+  register: jenkins_services
+  changed_when: false
+
+- name: Display Jenkins services
+  ansible.builtin.debug:
+    var: jenkins_services.stdout_lines
+
+- name: Get Jenkins admin password
+  ansible.builtin.command:
+    cmd: kubectl --kubeconfig /etc/rancher/k3s/k3s.yaml get secret jenkins -n jenkins -o jsonpath="{.data.jenkins-admin-password}"
+  register: jenkins_password
+  changed_when: false
+
+- name: Display Jenkins admin password
+  ansible.builtin.debug:
+    msg: "Admin password: {{ jenkins_password.stdout | b64decode }}"
+
+- name: Ensure Jenkins is running
+  ansible.builtin.assert:
+    that:
+      - "'Running' in jenkins_pods.stdout"
+    fail_msg: "Jenkins installation failed."
