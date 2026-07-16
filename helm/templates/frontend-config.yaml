@@ -7,36 +7,36 @@ metadata:
 
 data:
   APP_NAME: {{ .Values.app.name }}
-  VITE_APP_NAME: {{ .Values.data.VITE_APP_NAME }}
-  VITE_APP_SHORT_NAME: {{ .Values.data.VITE_APP_SHORT_NAME }}
-  VITE_APP_TAGLINE: {{ .Values.data.VITE_APP_TAGLINE }}
-  VITE_APP_DESCRIPTION: {{ .Values.data.VITE_APP_DESCRIPTION }}
-  VITE_APP_CONTACT_EMAIL: {{ .Values.data.VITE_APP_CONTACT_EMAIL }}
-  VITE_APP_LOGO_PATH: {{ .Values.data.VITE_APP_LOGO_PATH }}
+  VITE_APP_NAME: {{ .Values.frontendConfigmap.data.VITE_APP_NAME }}
+  VITE_APP_SHORT_NAME: {{ .Values.frontendConfigmap.data.VITE_APP_SHORT_NAME }}
+  VITE_APP_TAGLINE: {{ .Values.frontendConfigmap.data.VITE_APP_TAGLINE }}
+  VITE_APP_DESCRIPTION: {{ .Values.frontendConfigmap.data.VITE_APP_DESCRIPTION }}
+  VITE_APP_CONTACT_EMAIL: {{ .Values.frontendConfigmap.data.VITE_APP_CONTACT_EMAIL }}
+  VITE_APP_LOGO_PATH: {{ .Values.frontendConfigmap.data.VITE_APP_LOGO_PATH }}
 
-  VITE_NAVIGATION_TITLE: {{ .Values.data.VITE_NAVIGATION_TITLE }}
+  VITE_NAVIGATION_TITLE: {{ .Values.frontendConfigmap.data.VITE_NAVIGATION_TITLE }}
 
-  VITE_TAB_OVERVIEW: {{ .Values.data.VITE_TAB_OVERVIEW }}
-  VITE_TAB_DONORS: {{ .Values.data.VITE_TAB_DONORS }}
-  VITE_TAB_DONATIONS: {{ .Values.data.VITE_TAB_DONATIONS }}
-  VITE_TAB_DONATION_TYPES: {{ .Values.data.VITE_TAB_DONATION_TYPES }}
-  VITE_TAB_CUSTODY: {{ .Values.data.VITE_TAB_CUSTODY }}
-  VITE_TAB_APPROVALS: {{ .Values.data.VITE_TAB_APPROVALS }}
-  VITE_TAB_REPORTS: {{ .Values.data.VITE_TAB_REPORTS }}
-  VITE_TAB_SCHEDULED_REPORTS: {{ .Values.data.VITE_TAB_SCHEDULED_REPORTS }}
-  VITE_TAB_USERS: {{ .Values.data.VITE_TAB_USERS }}
-  VITE_TAB_SETTINGS: {{ .Values.data.VITE_TAB_SETTINGS }}
+  VITE_TAB_OVERVIEW: {{ .Values.frontendConfigmap.data.VITE_TAB_OVERVIEW }}
+  VITE_TAB_DONORS: {{ .Values.frontendConfigmap.data.VITE_TAB_DONORS }}
+  VITE_TAB_DONATIONS: {{ .Values.frontendConfigmap.data.VITE_TAB_DONATIONS }}
+  VITE_TAB_DONATION_TYPES: {{ .Values.frontendConfigmap.data.VITE_TAB_DONATION_TYPES }}
+  VITE_TAB_CUSTODY: {{ .Values.frontendConfigmap.data.VITE_TAB_CUSTODY }}
+  VITE_TAB_APPROVALS: {{ .Values.frontendConfigmap.data.VITE_TAB_APPROVALS }}
+  VITE_TAB_REPORTS: {{ .Values.frontendConfigmap.data.VITE_TAB_REPORTS }}
+  VITE_TAB_SCHEDULED_REPORTS: {{ .Values.frontendConfigmap.data.VITE_TAB_SCHEDULED_REPORTS }}
+  VITE_TAB_USERS: {{ .Values.frontendConfigmap.data.VITE_TAB_USERS }}
+  VITE_TAB_SETTINGS: {{ .Values.frontendConfigmap.data.VITE_TAB_SETTINGS }}
 
-  VITE_COLOR_PRIMARY: {{ .Values.data.VITE_COLOR_PRIMARY }}
-  VITE_COLOR_PRIMARY_DARK: {{ .Values.data.VITE_COLOR_PRIMARY_DARK }}
-  VITE_COLOR_ACCENT: {{ .Values.data.VITE_COLOR_ACCENT }}
-  VITE_COLOR_SIDEBAR: {{ .Values.data.VITE_COLOR_SIDEBAR }}
-  VITE_COLOR_BACKGROUND: {{ .Values.data.VITE_COLOR_BACKGROUND }}
-  VITE_COLOR_SURFACE: {{ .Values.data.VITE_COLOR_SURFACE }}
-  VITE_COLOR_TEXT: {{ .Values.data.VITE_COLOR_TEXT }}
-  VITE_COLOR_MUTED_TEXT: {{ .Values.data.VITE_COLOR_MUTED_TEXT }}
-  VITE_COLOR_SUCCESS: {{ .Values.data.VITE_COLOR_SUCCESS }}
-  VITE_COLOR_WARNING: {{ .Values.data.VITE_COLOR_WARNING }}
-  VITE_COLOR_DANGER: {{ .Values.data.VITE_COLOR_DANGER }}
+  VITE_COLOR_PRIMARY: {{ .Values.frontendConfigmap.data.VITE_COLOR_PRIMARY }}
+  VITE_COLOR_PRIMARY_DARK: {{ .Values.frontendConfigmap.data.VITE_COLOR_PRIMARY_DARK }}
+  VITE_COLOR_ACCENT: {{ .Values.frontendConfigmap.data.VITE_COLOR_ACCENT }}
+  VITE_COLOR_SIDEBAR: {{ .Values.frontendConfigmap.data.VITE_COLOR_SIDEBAR }}
+  VITE_COLOR_BACKGROUND: {{ .Values.frontendConfigmap.data.VITE_COLOR_BACKGROUND }}
+  VITE_COLOR_SURFACE: {{ .Values.frontendConfigmap.data.VITE_COLOR_SURFACE }}
+  VITE_COLOR_TEXT: {{ .Values.frontendConfigmap.data.VITE_COLOR_TEXT }}
+  VITE_COLOR_MUTED_TEXT: {{ .Values.frontendConfigmap.data.VITE_COLOR_MUTED_TEXT }}
+  VITE_COLOR_SUCCESS: {{ .Values.frontendConfigmap.data.VITE_COLOR_SUCCESS }}
+  VITE_COLOR_WARNING: {{ .Values.frontendConfigmap.data.VITE_COLOR_WARNING }}
+  VITE_COLOR_DANGER: {{ .Values.frontendConfigmap.data.VITE_COLOR_DANGER }}
 
-  VITE_DEFAULT_LOCALE: {{ .Values.data.VITE_DEFAULT_LOCALE }}
+  VITE_DEFAULT_LOCALE: {{ .Values.frontendConfigmap.data.VITE_DEFAULT_LOCALE }}

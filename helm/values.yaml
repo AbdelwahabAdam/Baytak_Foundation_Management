@@ -58,7 +58,7 @@ postgres:
 namespace:
   name: baytak
 
-backend-configmap:
+backendConfigmap:
   data:
     POSTGRES_DB: charity
     APP_NAME: Baytak Foundation
@@ -70,7 +70,7 @@ backend-configmap:
     PASSWORD_RESET_MINUTES: 30
 
 
-frontend-configmap:
+frontendConfigmap:
 data:
   APP_NAME: Baytak Foundation
   VITE_APP_NAME: Baytak Foundation
