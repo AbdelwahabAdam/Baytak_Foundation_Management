@@ -65,7 +65,11 @@ pipeline {
         stage('Deploy') {
             steps {
                 script {
-
+                    sh '''
+                    pwd
+                    ls -la
+                    ls -la terraform
+                    '''
                     def SERVER_IP = sh(
                         script: "terraform -chdir=terraform output -raw server_public_ip",
                         returnStdout: true
