@@ -23,10 +23,10 @@ backend:
 
 frontend:
   replicas: 2
- image:
-    repository: abdelwahabadam/baytak
-    tag: latest
-    pullPolicy: IfNotPresent
+  image:
+      repository: abdelwahabadam/baytak
+      tag: latest
+      pullPolicy: IfNotPresent
   port: 80
   resources:
     requests:
