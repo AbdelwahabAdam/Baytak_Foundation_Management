@@ -28,3 +28,5 @@ data:
   PASSWORD_RESET_MINUTES: {{ .Values.backendConfigmap.data.PASSWORD_RESET_MINUTES | quote }}
 
   ALLOWED_ORIGINS: {{ .Values.backendConfigmap.data.ALLOWED_ORIGINS | quote }}
+
+  REPORT_STORAGE_PATH: {{ .Values.backendConfigmap.data.REPORT_STORAGE_PATH | quote }}

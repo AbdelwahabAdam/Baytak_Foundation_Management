@@ -82,6 +82,11 @@ class Settings(BaseSettings):
     )
 
 
+    report_storage_path: str = Field(
+        default="/app/reports",
+        alias="REPORT_STORAGE_PATH",
+    )
+
 @lru_cache
 def get_settings() -> Settings:
     return Settings()

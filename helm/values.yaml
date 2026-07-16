@@ -83,7 +83,7 @@ backendConfigmap:
     FRONTEND_APP_URL: "http://frontend-service"
     PASSWORD_RESET_MINUTES: "30"
     ALLOWED_ORIGINS: '["http://frontend-service","http://localhost:3000"]'
-
+    REPORT_STORAGE_PATH: "/app/reports"
 
 frontendConfigmap:
   data:
