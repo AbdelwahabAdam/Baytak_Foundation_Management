@@ -3,7 +3,7 @@
 apiVersion: v1
 kind: Secret
 metadata:
-  name: regcred
+  name: {{ .Values.imagePullSecrets.name }}
 type: kubernetes.io/dockerconfigjson
 
 data:

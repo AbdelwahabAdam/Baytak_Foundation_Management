@@ -9,11 +9,14 @@ namespace:
 metadata:
   namespace: {{ .Release.Namespace }}
 
+imagePullSecrets:
+  name: regcred
+
 backend:
   replicas: 2
   image:
     repository: abdelwahabadam/baytak
-    tag: latest
+    tag: backend-latest
     pullPolicy: IfNotPresent
 
   port: 8000
@@ -31,7 +34,7 @@ frontend:
   replicas: 2
   image:
       repository: abdelwahabadam/baytak
-      tag: latest
+      tag: frontend-latest
       pullPolicy: IfNotPresent
   port: 80
   configMap: frontend-config
