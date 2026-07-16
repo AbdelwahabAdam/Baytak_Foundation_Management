@@ -6,7 +6,10 @@ metadata:
   namespace: {{ .Values.namespace.name }}
 
 data:
-  POSTGRES_DB: {{ .Values.backendConfigmap.data.POSTGRES_DB | quote }}
+  DATABASE_HOST: {{ .Values.backendConfigmap.data.DATABASE_HOST | quote }}
+  DATABASE_PORT: {{ .Values.backendConfigmap.data.DATABASE_PORT | quote }}
+  DATABASE_NAME: {{ .Values.backendConfigmap.data.DATABASE_NAME | quote }}
+
   APP_NAME: {{ .Values.backendConfigmap.data.APP_NAME | quote }}
   SCHEDULER_ENABLED: {{ .Values.backendConfigmap.data.SCHEDULER_ENABLED | quote }}
   SMTP_HOST: {{ .Values.backendConfigmap.data.SMTP_HOST | quote }}

@@ -68,13 +68,16 @@ postgres:
 
 backendConfigmap:
   data:
-    POSTGRES_DB: "charity"
-    APP_NAME: "Baytak Foundation"
+    DATABASE_HOST: db-service
+    DATABASE_PORT: "5432"
+    DATABASE_NAME: charity
+
+    APP_NAME: Baytak Foundation
     SCHEDULER_ENABLED: "true"
-    SMTP_HOST: "smtp.gmail.com"
+    SMTP_HOST: smtp.gmail.com
     SMTP_PORT: "587"
     SMTP_STARTTLS: "true"
-    FRONTEND_APP_URL: "http://localhost:8080"
+    FRONTEND_APP_URL: "http://frontend-service:80"
     PASSWORD_RESET_MINUTES: "30"
 
 
