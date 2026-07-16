@@ -4,10 +4,10 @@ app:
   name: "Baytak Foundation"
 
 namespace:
-  name: {{ .Release.Namespace }}
+  name: baytak
 
 metadata:
-  namespace: {{ .Release.Namespace }}
+  namespace: baytak
 
 imagePullSecrets:
   name: regcred
