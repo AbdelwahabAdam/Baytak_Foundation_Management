@@ -7,7 +7,6 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: manual
   resources:
     requests:
       storage: {{ .Values.postgres.pvc.storage }}
