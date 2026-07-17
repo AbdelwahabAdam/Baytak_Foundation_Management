@@ -14,7 +14,7 @@
     # Images
     backend_repo: "abdelwahabadam/baytak"
     frontend_repo: "abdelwahabadam/baytak"
-
+    chart_path: "/opt/baytak/helm"
     backend_tag: "{{ backend_tag | default('backend-latest') }}"
     frontend_tag: "{{ frontend_tag | default('frontend-latest') }}"
   vars_files:

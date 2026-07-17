@@ -208,7 +208,7 @@ export function LandingPage() {
           <form className="contact-form" onSubmit={(event) => { event.preventDefault(); setContactNotice('Form delivery is being configured. Please contact the foundation by email in the meantime.') }}><label>Name<input required placeholder="Your name" /></label><label>Email<input type="email" required placeholder="you@example.com" /></label><label>How can we help?<textarea required rows={4} placeholder="Tell us how you would like to support Baytak Foundation" /></label><button className="button button-primary" type="submit">Send message <ArrowRight size={17} /></button>{contactNotice && <p className="contact-notice">{contactNotice}</p>}</form>
         </section>
       </main>
-      <footer className="foundation-footer"><div className="brand"><img className="brand-logo" src={brand.logoPath} alt="" /><span><strong>{brand.appName}</strong><small>مؤسسة بيتك</small></span></div><span>© {new Date().getFullYear()} {brand.appName}. Built around compassion, dignity, and accountability.</span><a href="#top">Back to top</a></footer>
+      <footer className="foundation-footer"><div className="brand"><img className="brand-logo" src={brand.logoPath} alt="" /><span><strong>{brand.appName}</strong><small>مؤسسة بيتك</small></span></div><span>© {new Date().getFullYear()} {brand.appName}. Built around compassion, dignity, and accountability.</span><a href="#top">Back top</a></footer>
     </div>
   )
 }

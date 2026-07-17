@@ -421,7 +421,7 @@ const arabic: Record<string, string> = {
   'Tell us how you would like to support Baytak Foundation': 'أخبرنا كيف تود دعم مؤسسة بيتك',
   'Send message': 'إرسال الرسالة',
   'Form delivery is being configured. Please contact the foundation by email in the meantime.': 'يجري إعداد إرسال النموذج. يرجى التواصل مع المؤسسة عبر البريد الإلكتروني في الوقت الحالي.',
-  'Back to top': 'العودة إلى الأعلى',
+  'Back top': 'العودة إلى الأعلى',
   'Built around compassion, dignity, and accountability.': 'مبني على الرحمة والكرامة والمساءلة.',
 }
 
