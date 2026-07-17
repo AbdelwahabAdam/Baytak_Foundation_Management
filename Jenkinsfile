@@ -9,6 +9,8 @@ pipeline {
         DOCKER_USER = 'abdelwahabadam'
         IMAGE_TAG = "${BUILD_NUMBER}"
         DOCKER_CREDENTIALS = credentials('docker-credentials')
+        DOCKER_BUILDKIT = "1"
+
     }
 
     stages {
@@ -30,20 +32,28 @@ pipeline {
         }
 
         stage('Build Images') {
-            steps {
-                sh '''
-                    # Backend
-                    docker build \
-                        -t ${DOCKER_USER}/baytak:backend-${IMAGE_TAG} \
-                        -t ${DOCKER_USER}/baytak:backend-latest \
-                        ./backend
+            parallel {
+                stage('Build Backend') {
+                    steps {
+                        sh '''
+                            docker build \
+                                -t ${DOCKER_USER}/baytak:backend-${IMAGE_TAG} \
+                                -t ${DOCKER_USER}/baytak:backend-latest \
+                                ./backend
+                        '''
+                    }
+                }
 
-                    # Frontend
-                    docker build \
-                        -t ${DOCKER_USER}/baytak:frontend-${IMAGE_TAG} \
-                        -t ${DOCKER_USER}/baytak:frontend-latest \
-                        ./frontend
-                '''
+                stage('Build Frontend') {
+                    steps {
+                        sh '''
+                            docker build \
+                                -t ${DOCKER_USER}/baytak:frontend-${IMAGE_TAG} \
+                                -t ${DOCKER_USER}/baytak:frontend-latest \
+                                ./frontend
+                        '''
+                    }
+                }
             }
         }
 
@@ -54,45 +64,60 @@ pipeline {
         }
 
         stage('Push Images') {
-            steps {
-                sh '''
-                    # Backend
-                    docker push ${DOCKER_USER}/baytak:backend-${IMAGE_TAG}
-                    docker push ${DOCKER_USER}/baytak:backend-latest
+            parallel {
+                stage('Push Backend') {
+                    steps {
+                        sh '''
+                            docker push ${DOCKER_USER}/baytak:backend-${IMAGE_TAG}
+                            docker push ${DOCKER_USER}/baytak:backend-latest
+                        '''
+                    }
+                }
 
-                    # Frontend
-                    docker push ${DOCKER_USER}/baytak:frontend-${IMAGE_TAG}
-                    docker push ${DOCKER_USER}/baytak:frontend-latest
-                '''
+                stage('Push Frontend') {
+                    steps {
+                        sh '''
+                            docker push ${DOCKER_USER}/baytak:frontend-${IMAGE_TAG}
+                            docker push ${DOCKER_USER}/baytak:frontend-latest
+                        '''
+                    }
+                }
             }
         }
 
         stage('Deploy') {
-            steps {
+                steps {
+                    dir('/home/hopa/baytak/Baytak_Foundation_Management') {
+                        sh 'whoami'
 
-            dir('/home/hopa/baytak/Baytak_Foundation_Management/ansible') {
-                sh 'whoami'
-                sh 'cat instance_ip'
+                        withCredentials([string(credentialsId: 'ansible-vault-password', variable: 'VAULT_PASSWORD')]) {
 
-                sh """
-                         ansible-playbook upgrade-helm.yaml \
-                            -i inventory.ini \
-                            --vault-password-file .vault_pass \
-                            -e backend_tag=backend-${IMAGE_TAG} \
-                            -e frontend_tag=frontend-${IMAGE_TAG}
-                """
+                            sshagent(credentials: ['ec2-key']) {
 
+                                sh '''
+                                    whoami
+                                    echo "$VAULT_PASSWORD" > .vault_pass
+                                    chmod 600 .vault_pass
+                                    trap "rm -f .vault_pass" EXIT
+
+                                    export ANSIBLE_CONFIG=ansible/ansible.cfg
+                                    ansible-playbook ansible/upgrade-helm.yaml \
+                                        -i ansible/inventory.ini \
+                                        --vault-password-file .vault_pass \
+                                        -e backend_tag=backend-${IMAGE_TAG} \
+                                        -e frontend_tag=frontend-${IMAGE_TAG}
+                                '''
+                            }
+                        }
+                    }
+                }
             }
-
-
-            }
-        }
     }
 
     post {
         always {
             sh '''
-                docker image prune -af || true
+                docker image prune -f || true
                 docker builder prune -af || true
                 docker logout || true
             '''

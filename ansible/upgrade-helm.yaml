@@ -1,20 +1,25 @@
 ---
 - name: Deploy/Upgrade Baytak Helm Chart
-  hosts: k3s_server
+  hosts: all
   become: true
+  gather_facts: true
+
 
   vars:
-    release_name: baytak
-    chart_path: /opt/baytak/helm
-    namespace: baytak
-    kubeconfig_path: /etc/rancher/k3s/k3s.yaml
+    ansible_python_interpreter: /opt/ansible-venv/bin/python
 
+    release_name: baytak
+    kubeconfig_path: /etc/rancher/k3s/k3s.yaml
+    k3s_namespace: baytak
     # Images
     backend_repo: "abdelwahabadam/baytak"
     frontend_repo: "abdelwahabadam/baytak"
 
     backend_tag: "{{ backend_tag | default('backend-latest') }}"
     frontend_tag: "{{ frontend_tag | default('frontend-latest') }}"
+  vars_files:
+    - group_vars/all/vault.yml
+
 
   tasks:
 
@@ -25,7 +30,7 @@
         name: "{{ release_name }}"
         chart_ref: "{{ chart_path }}"
 
-        release_namespace: "{{ namespace }}"
+        release_namespace: "{{ k3s_namespace }}"
         create_namespace: true
         release_state: present
 
@@ -61,26 +66,26 @@
           ###########################################################
 
           backendSecret:
-            DATABASE_USER: "{{ vault_database_user }}"
-            DATABASE_PASSWORD: "{{ vault_database_password }}"
+            DATABASE_USER: "{{ DATABASE_USER }}"
+            DATABASE_PASSWORD: "{{ DATABASE_PASSWORD }}"
 
-            JWT_SECRET_KEY: "{{ vault_jwt_secret_key }}"
+            JWT_SECRET_KEY: "{{ JWT_SECRET_KEY }}"
 
-            BOOTSTRAP_ADMIN_EMAIL: "{{ vault_bootstrap_admin_email }}"
-            BOOTSTRAP_ADMIN_PASSWORD: "{{ vault_bootstrap_admin_password }}"
+            BOOTSTRAP_ADMIN_EMAIL: "{{ BOOTSTRAP_ADMIN_EMAIL }}"
+            BOOTSTRAP_ADMIN_PASSWORD: "{{ BOOTSTRAP_ADMIN_PASSWORD }}"
 
-            SMTP_USERNAME: "{{ vault_smtp_username }}"
-            SMTP_PASSWORD: "{{ vault_smtp_password }}"
-            SMTP_FROM: "{{ vault_smtp_from }}"
+            SMTP_USERNAME: "{{ SMTP_USERNAME }}"
+            SMTP_PASSWORD: "{{ SMTP_PASSWORD }}"
+            SMTP_FROM: "{{ SMTP_FROM }}"
 
           ###########################################################
           # DockerHub Secret
           ###########################################################
 
           registry:
-            username: "{{ vault_dockerhub_username }}"
-            password: "{{ vault_dockerhub_token }}"
-            email: "{{ vault_dockerhub_email }}"
+            username: "{{ dockerhub_username }}"
+            password: "{{ dockerhub_token }}"
+            email: "{{ dockerhub_email }}"
 
       register: helm_deploy
 
@@ -88,7 +93,6 @@
       debug:
         msg:
           - "Helm Release : {{ release_name }}"
-          - "Namespace    : {{ namespace }}"
           - "Backend      : {{ backend_repo }}:{{ backend_tag }}"
           - "Frontend     : {{ frontend_repo }}:{{ frontend_tag }}"
 
@@ -99,7 +103,7 @@
     - name: Get Helm release information
       kubernetes.core.helm_info:
         kubeconfig: "{{ kubeconfig_path }}"
-        release_namespace: "{{ namespace }}"
+        release_namespace: "{{ k3s_namespace }}"
         release_name: "{{ release_name }}"
       register: helm_info
 
@@ -112,7 +116,7 @@
         kubeconfig: "{{ kubeconfig_path }}"
         api_version: apps/v1
         kind: Deployment
-        namespace: "{{ namespace }}"
+        namespace: baytak
         name: backend-deployment
       register: backend_status
       retries: 30
@@ -126,7 +130,7 @@
         kubeconfig: "{{ kubeconfig_path }}"
         api_version: apps/v1
         kind: Deployment
-        namespace: "{{ namespace }}"
+        namespace: baytak
         name: frontend-deployment
       register: frontend_status
       retries: 30
