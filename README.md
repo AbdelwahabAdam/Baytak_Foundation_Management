@@ -1,103 +1,311 @@
-# Baytak Foundation Management
+# Baytak Foundation Management — DevOps
 
-A local MVP for charity operations: donors, donation funds and receipts, user roles, custody accounting, expense approval, dashboard metrics, audit records, and CSV reports.
+Charity operations platform (donors, funds, custody, expenses, reports) deployed on a **single-node k3s cluster** on AWS EC2.
 
-## Run locally
+**Stack:** Terraform → Ansible → Helm/k3s → Jenkins CI/CD
 
-1. Optionally copy `.env.example` to `.env` and replace the local passwords/secrets.
-2. Run:
+---
 
-   ```powershell
-   docker compose up --build
-   ```
-
-3. Open:
-   - App: http://localhost:8080
-   - API docs: http://localhost:8000/docs
-   - API health: http://localhost:8000/health
-
-The initial local administrator is configured through `BOOTSTRAP_ADMIN_EMAIL` and `BOOTSTRAP_ADMIN_PASSWORD`. With no `.env` file, use:
+## Architecture overview
 
 ```text
-admin@charity.local
-ChangeMe123!
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     Jenkins Master (control plane VM)                   │
+│         runs Terraform + Ansible + builds Docker images                 │
+│                                                                         │
+│   Git commit / SCM poll                                                 │
+│        │                                                                │
+│        ▼                                                                │
+│   Checkout → Docker Login → Build FE/BE (parallel) → Verify             │
+│        → Push FE/BE (parallel) → ansible-playbook upgrade-helm.yaml     │
+└───────────────────────────────┬─────────────────────────────────────────┘
+                                │ SSH + Ansible Vault
+                                ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    AWS EC2 (Ubuntu 24.04) — single node                 │
+│                                                                         │
+│   Terraform provisions: EC2 · IAM role/profile · Security Group · Key   │
+│                                                                         │
+│   Ansible installs:                                                     │
+│     docker · git · helm · k3s · nginx-ingress · cert-manager            │
+│     alertmanager · prometheus · grafana                                 │
+│     transfer_files (clone repo + first Helm deploy)                     │
+│                                                                         │
+│   ┌─────────────────────────── k3s ─────────────────────────────────┐   │
+│   │  Namespace: baytak                                              │   │
+│   │    Frontend · Backend · Postgres · Ingress · cert-manager TLS   │   │
+│   │  Namespace: monitoring                                          │   │
+│   │    Prometheus · Grafana · Alertmanager                          │   │
+│   │  Namespace: ingress-nginx                                       │   │
+│   │    NGINX Ingress (NodePorts 31080 / 31443)                      │   │
+│   └─────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────┘
+                                │
+                                ▼
+                         Docker Hub
+                   abdelwahabadam/baytak
 ```
 
-Change this password after the first sign-in.
+### Why k3s?
 
-## Branding and logo
+Free-tier / single-node EC2 needs a lightweight Kubernetes. **k3s** gives standard Kubernetes APIs (Deployments, Services, Ingress, Helm) with a small footprint—ideal for one node without a full control-plane HA cluster.
 
-The supplied Baytak logo is included at `frontend/public/baytak-logo.png`. App text, sidebar tab labels, and the theme palette are configured in the root `.env` file; use the complete list in `.env.example`.
+---
 
-After changing any `VITE_*` value, rebuild the frontend because Vite embeds these public values into its production build:
-
-```powershell
-docker compose up -d --build frontend
-```
-
-`VITE_APP_LOGO_PATH` defaults to `/baytak-logo.png`. To use another logo, place it in `frontend/public`, set this value to its public path (for example, `/my-logo.png`), then rebuild the frontend.
-
-## Languages
-
-The interface includes an English/العربية language switcher on the public, sign-in, and application pages. The chosen language is saved in the browser. Set `VITE_DEFAULT_LOCALE=ar` in `.env` to start new browsers in Arabic; users can still switch languages at any time.
-
-## Seed demonstration data
-
-After the stack is running, populate the local database with users, donation types, donors, donations, custody assignments, pending/approved/rejected expenses, and a scheduled-report definition:
-
-```powershell
-docker compose exec backend python seed.py
-```
-
-The command is idempotent: running it again does not duplicate data. All seeded users use `ChangeMe123!`; sign in as `finance@charity.local`, `sami@charity.local`, `lina@charity.local`, or `viewer@charity.local` to exercise each role.
-
-## API tests
-
-The backend includes isolated API tests for every application endpoint, role-protected workflow, report download, password-reset token, and outgoing email structure. The suite uses an in-memory SQLite database and mocked SMTP delivery; it does not require Docker or a real email account.
-
-```powershell
-cd backend
-python -m pip install -r requirements-dev.txt
-python -m pytest -q
-```
-
-## Manual validation sequence
-
-1. Sign in as the administrator.
-2. Create a donation type, donor, and donation; confirm dashboard totals update.
-3. Create a staff user and assign custody to that account.
-4. Sign in as the staff user, submit an expense, then approve/reject it as finance or admin.
-5. Generate a donor, donation, or custody CSV from Reports after choosing a start and end date.
-6. Create a Scheduled Report, configure recipient emails, then use **Run now** to verify SMTP delivery.
-
-## Scheduled report email
-
-Configure the SMTP settings in your uncommitted `.env` file, then restart the backend:
+## Repository layout
 
 ```text
-SMTP_HOST=smtp.example.com
-SMTP_PORT=587
-SMTP_USERNAME=reports@example.com
-SMTP_PASSWORD=your-smtp-password
-SMTP_FROM=reports@example.com
-SMTP_STARTTLS=true
+├── terraform/          # AWS: EC2, IAM, SG, key pair, Ansible inventory
+├── ansible/            # Bootstrap + platform + Helm deploy/upgrade
+│   ├── playbook.yml           # First-time server setup
+│   ├── upgrade-helm.yaml      # CI/CD Helm upgrade
+│   ├── group_vars/all/vault.yml
+│   └── roles/                 # One role per component (tasks, vars, handlers, …)
+├── helm/               # Application chart "Baytak"
+├── Jenkinsfile         # Build → push → deploy pipeline
+├── backend/            # FastAPI + Dockerfile
+├── frontend/           # React/Vite + Dockerfile
+└── compose.yaml        # Optional local MVP (no cloud)
 ```
 
-Scheduled reports create a CSV attachment and send it to the configured recipients. The local backend checks for due schedules every minute. For local testing, use the **Run now** action on the Scheduled Reports page.
+---
 
-## Password reset email
+## Plan (end-to-end)
 
-The sign-in screen includes **Forgot password?**. For a user to receive its reset link, configure SMTP and set the public address used by the recipient's browser:
+```mermaid
+flowchart LR
+  A[1. Terraform apply] --> B[2. Ansible playbook.yml]
+  B --> C[3. App live on k3s]
+  C --> D[4. Jenkins pipeline on every change]
+  D --> E[Build & push images]
+  E --> F[Ansible upgrade-helm.yaml]
+  F --> C
+```
+
+| Step | Tool | What happens |
+|------|------|----------------|
+| 1 | **Terraform** | Creates EC2, IAM role/instance profile, security group, SSH key; writes `ansible/inventory.ini` |
+| 2 | **Ansible** `playbook.yml` | Installs platform stack; last role clones the repo and Helm-installs the app |
+| 3 | **Helm / k3s** | Runs frontend, backend, Postgres, ingress, TLS, monitoring |
+| 4 | **Jenkins** | On new commits: build/tag/push images, then Helm upgrade via Ansible + vault |
+
+---
+
+## Infrastructure (Terraform)
+
+**Region (default):** `eu-central-1`
+
+| Resource | Purpose |
+|----------|---------|
+| EC2 (Ubuntu 24.04) | Single host for k3s + app |
+| IAM role + instance profile | EC2 identity |
+| Security group `baytak-sg` | Ports **22**, **80**, **443**, **31080**, **31443** |
+| Key pair | SSH from Jenkins / operators |
+| `local_file` inventory | Generates `ansible/inventory.ini` with the public IP |
 
 ```text
-FRONTEND_APP_URL=http://localhost:8080
-PASSWORD_RESET_MINUTES=30
+terraform/
+  main.tf · variables.tf · data.tf · key_pair.tf
+  security_group.tf · iam.tf · ec2.tf · outputs.tf
+  inventory.tf · ansible_inventory.tpl
 ```
 
-For a deployed system, `FRONTEND_APP_URL` must be the actual HTTPS application URL, not `localhost`. Reset links expire, are single-use, and revoke the user's active sessions after a successful password reset.
+### Provision
 
-## Scope
+```bash
+cd terraform
 
-This repository stops at the application and local Docker Compose layer. Terraform, Ansible, Kubernetes/Helm, Jenkins, monitoring, and cloud storage are intentionally not included.
+# Create terraform.tfvars (gitignored), for example:
+#   aws_region      = "eu-central-1"
+#   project_name    = "baytak"
+#   environment     = "production"
+#   instance_type   = "t3.micro"   # or your chosen size
+#   key_pair_name   = "baytak"
+#   public_key_path = "~/.ssh/baytak.pub"
+#   ssh_cidr        = "YOUR.IP.0.0/32"
 
-The scheduler runs inside the single local backend process. Move it to a dedicated worker before deploying multiple backend replicas. Local reports are CSV files stored in the Compose `report_data` volume.
+terraform init
+terraform plan
+terraform apply
+```
+
+Outputs include public IP/DNS. Inventory is written to `../ansible/inventory.ini`:
+
+```ini
+[baytak]
+<public_ip> ansible_user=ubuntu
+```
+
+---
+
+## Configuration (Ansible)
+
+Each role owns its **tasks**, **vars**, **handlers**, **defaults**, and templates where needed.
+
+### Bootstrap playbook (`ansible/playbook.yml`)
+
+Runs on the EC2 host after Terraform:
+
+| Order | Role | Installs / does |
+|------:|------|------------------|
+| 1 | `python` | System Python + `/opt/ansible-venv` |
+| 2 | `docker` | Docker CE |
+| 3 | `git` | Git |
+| 4 | `helm` | Helm 3 |
+| 5 | `k3s` | k3s server (`--docker`, Traefik disabled) |
+| 6 | `nginx-ingress` | Ingress NGINX (NodePorts 31080/31443) |
+| 7 | `cert-manager` | Jetstack cert-manager + CRDs |
+| 8 | `alertmanager` | Alertmanager (monitoring) |
+| 9 | `prometheus` | Prometheus (monitoring) |
+| 10 | `grafana` | Grafana (monitoring) |
+| 11 | `transfer_files` | Clone repo → `/opt/baytak` · first **Helm install** |
+
+Secrets come from **Ansible Vault** (`ansible/group_vars/all/vault.yml`): DB, JWT, bootstrap admin, SMTP, Docker Hub credentials.
+
+### First-time configure
+
+From the Jenkins/control VM (SSH key must reach the instance as `ubuntu`):
+
+```bash
+cd ansible   # or set ANSIBLE_CONFIG=ansible/ansible.cfg from repo root
+
+# Decrypt vault with your password file
+ansible-playbook playbook.yml \
+  -i inventory.ini \
+  --vault-password-file /path/to/vault_pass
+```
+
+> Ensure `vars_files` points at `group_vars/all/vault.yml` (vault lives under `group_vars/all/`).
+
+### CI upgrade playbook (`ansible/upgrade-helm.yaml`)
+
+Used by Jenkins after images are pushed:
+
+- Release: `baytak`
+- Chart: `/opt/baytak/helm`
+- Namespace: `baytak`
+- Extra vars: `backend_tag`, `frontend_tag` (e.g. `backend-42`, `frontend-42`)
+- Injects vault secrets into Helm values and waits for rollouts
+
+```bash
+export ANSIBLE_CONFIG=ansible/ansible.cfg
+ansible-playbook ansible/upgrade-helm.yaml \
+  -i ansible/inventory.ini \
+  --vault-password-file .vault_pass \
+  -e backend_tag=backend-<BUILD_NUMBER> \
+  -e frontend_tag=frontend-<BUILD_NUMBER>
+```
+
+---
+
+## Application on Kubernetes (Helm)
+
+Chart: `helm/` (name **Baytak**)
+
+```text
+Namespace baytak
+  ├── frontend Deployment + Service
+  ├── backend Deployment + Service + ConfigMap + Secret
+  ├── postgres Deployment + Service + PV/PVC
+  ├── Ingress (nginx) + Let's Encrypt issuer
+  └── Docker Hub pull secret (regcred)
+```
+
+Images: `abdelwahabadam/baytak:backend-*` and `abdelwahabadam/baytak:frontend-*`
+
+---
+
+## CI/CD (Jenkins)
+
+**Jenkins master** = the VM that runs Terraform and Ansible.
+
+```text
+Git commit
+    │
+    ▼
+┌──────────┐   ┌──────────────┐   ┌─────────────────────────┐
+│ Checkout │ → │ Docker Login │ → │ Build Images (parallel) │
+└──────────┘   └──────────────┘   │   Backend + Frontend    │
+                                  │   tag: *-BUILD_NUMBER   │
+                                  │        *-latest         │
+                                  └───────────┬─────────────┘
+                                              ▼
+                                  ┌───────────────┐
+                                  │ Verify Images │
+                                  └───────┬───────┘
+                                          ▼
+                                  ┌────────────────────────┐
+                                  │ Push Images (parallel) │
+                                  └───────────┬────────────┘
+                                              ▼
+                                  ┌────────────────────────────┐
+                                  │ Deploy                     │
+                                  │ ansible-vault-password     │
+                                  │ + ec2-key (SSH)            │
+                                  │ → upgrade-helm.yaml        │
+                                  └────────────────────────────┘
+```
+
+### Pipeline stages (`Jenkinsfile`)
+
+1. **Checkout** — clean workspace + SCM  
+2. **Docker Login** — credential `docker-credentials`  
+3. **Build Images** (parallel FE / BE) — tags `backend|frontend-${BUILD_NUMBER}` and `*-latest`  
+4. **Verify Images**  
+5. **Push Images** (parallel FE / BE) to Docker Hub  
+6. **Deploy** — writes vault password from Jenkins credential `ansible-vault-password`, uses `sshagent(['ec2-key'])`, runs `upgrade-helm.yaml` with the new tags  
+
+Trigger in-repo: SCM poll every 5 minutes (`pollSCM`). Wire a Git webhook to Jenkins for push-on-commit if you prefer.
+
+### Jenkins credentials required
+
+| ID | Use |
+|----|-----|
+| `docker-credentials` | Docker Hub login |
+| `ansible-vault-password` | Decrypt Ansible Vault during deploy |
+| `ec2-key` | SSH to the EC2 target |
+
+---
+
+## Quick start (full cloud path)
+
+Prerequisites on the control VM: AWS CLI/credentials, Terraform ≥ 1.8, Ansible, Docker, SSH key matching Terraform’s key pair, Ansible Vault password file.
+
+```bash
+# 1) Infrastructure
+cd terraform
+terraform init && terraform apply
+
+# 2) Platform + first deploy
+cd ../ansible
+ansible-playbook playbook.yml -i inventory.ini --vault-password-file ~/.vault_pass
+
+# 3) Ongoing releases
+#    Point Jenkins at this repo; pipeline builds, pushes, and upgrades Helm.
+```
+
+After deploy, hit the instance on **80/443** (or NodePorts **31080/31443** for ingress). Grafana/Prometheus live in the `monitoring` namespace on the same node.
+
+---
+
+## Local development (optional)
+
+No AWS required:
+
+```powershell
+# Optional: copy .env.example → .env
+docker compose up --build
+```
+
+- App: http://localhost:8080  
+- API docs: http://localhost:8000/docs  
+
+Default bootstrap admin (if no `.env`): `admin@charity.local` / `ChangeMe123!`
+
+---
+
+## Security notes
+
+- `terraform.tfvars`, `ansible/inventory.ini`, `.env`, and Terraform state are gitignored.  
+- Application secrets for production live in **Ansible Vault**, not in Git.  
+- Jenkins never commits the vault password; it is injected at deploy time and removed afterward.
