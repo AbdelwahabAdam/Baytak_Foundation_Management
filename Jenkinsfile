@@ -69,11 +69,11 @@ pipeline {
                         pwd
                         ls -la
                         echo "Instance IP:"
-                        cat instance_ip
+                        cat /home/hopa/baytak/Baytak_Foundation_Management/instance_ip
                     '''
 
                     def SERVER_IP = sh(
-                        script: "cat instance_ip",
+                        script: "cat /home/hopa/baytak/Baytak_Foundation_Management/instance_ip",
                         returnStdout: true
                     ).trim()
 
@@ -88,7 +88,7 @@ pipeline {
                             ssh -o StrictHostKeyChecking=no ubuntu@${SERVER_IP} <<'EOF'
         cd /opt/baytak || exit 1
 
-        helm upgrade --install baytak ./helm \
+        helm upgrade --install baytak /home/hopa/baytak/Baytak_Foundation_Management/helm \
             --namespace baytak \
             --set backend.image.tag=backend-${IMAGE_TAG} \
             --set frontend.image.tag=frontend-${IMAGE_TAG}

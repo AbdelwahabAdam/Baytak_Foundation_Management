@@ -19,6 +19,13 @@
     group: 101
     mode: "0775"
 
+- name: Create instance_ip file
+  copy:
+    dest: /opt/baytak/instance_ip
+    content: "{{ ansible_host }}\n"
+    owner: ubuntu
+    group: ubuntu
+    mode: "0644"
 
 - name: Deploy Baytak
   kubernetes.core.helm:
