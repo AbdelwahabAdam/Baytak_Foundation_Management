@@ -12,7 +12,12 @@ pipeline {
     }
 
     stages {
-
+        stage('Checkout') {
+            steps {
+                deleteDir()
+                checkout scm
+            }
+        }
         stage('Docker Login') {
             steps {
                 echo "Logging into Docker Hub..."
@@ -64,40 +69,22 @@ pipeline {
 
         stage('Deploy') {
             steps {
-                script {
-                    sh '''
-                        pwd
-                        ls -la
-                        echo "Instance IP:"
-                        cat /home/hopa/baytak/Baytak_Foundation_Management/instance_ip
-                    '''
 
-                    def SERVER_IP = sh(
-                        script: "cat /home/hopa/baytak/Baytak_Foundation_Management/instance_ip",
-                        returnStdout: true
-                    ).trim()
+            dir('/home/hopa/baytak/Baytak_Foundation_Management/ansible') {
+                sh 'whoami'
+                sh 'cat instance_ip'
 
-                    if (!SERVER_IP) {
-                        error "SERVER_IP is empty. Check the instance_ip file."
-                    }
+                sh """
+                         ansible-playbook upgrade-helm.yaml \
+                            -i inventory.ini \
+                            --vault-password-file .vault_pass \
+                            -e backend_tag=backend-${IMAGE_TAG} \
+                            -e frontend_tag=frontend-${IMAGE_TAG}
+                """
 
-                    echo "Deploying to ${SERVER_IP}"
+            }
 
-                    sshagent(credentials: ['ec2-key']) {
-                        sh """
-                        ssh -o StrictHostKeyChecking=no ubuntu@${SERVER_IP} <<EOF
-                        set -e
 
-                        cd /opt/baytak
-
-                        helm upgrade --install baytak ./helm \
-                            --namespace baytak \
-                            --set backend.image.tag=backend-${IMAGE_TAG} \
-                            --set frontend.image.tag=frontend-${IMAGE_TAG}
-                        EOF
-                        """
-                    }
-                }
             }
         }
     }
