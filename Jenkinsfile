@@ -85,14 +85,16 @@ pipeline {
 
                     sshagent(credentials: ['ec2-key']) {
                         sh """
-                            ssh -o StrictHostKeyChecking=no ubuntu@${SERVER_IP} <<'EOF'
-        cd /opt/baytak || exit 1
+                        ssh -o StrictHostKeyChecking=no ubuntu@${SERVER_IP} <<EOF
+                        set -e
 
-        helm upgrade --install baytak /home/hopa/baytak/Baytak_Foundation_Management/helm \
-            --namespace baytak \
-            --set backend.image.tag=backend-${IMAGE_TAG} \
-            --set frontend.image.tag=frontend-${IMAGE_TAG}
-        EOF
+                        cd /opt/baytak
+
+                        helm upgrade --install baytak ./helm \
+                            --namespace baytak \
+                            --set backend.image.tag=backend-${IMAGE_TAG} \
+                            --set frontend.image.tag=frontend-${IMAGE_TAG}
+                        EOF
                         """
                     }
                 }
