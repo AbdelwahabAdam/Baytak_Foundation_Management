@@ -67,7 +67,7 @@ def test_donors_donation_types_and_donations_crud(
             "donor_id": donor_id,
             "donation_type_id": type_id,
             "amount": "125.50",
-            "currency": "USD",
+            "currency": "EGP",
             "donation_date": "2026-01-15T10:30:00Z",
             "payment_method": "transfer",
             "receipt_number": "RCT-100",

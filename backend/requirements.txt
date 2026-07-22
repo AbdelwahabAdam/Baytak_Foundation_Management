@@ -9,3 +9,5 @@ pwdlib[argon2]
 email-validator
 python-multipart
 apscheduler
+prometheus-client
+prometheus-fastapi-instrumentator

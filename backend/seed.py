@@ -169,7 +169,7 @@ def create_donations(
             donor_id=donor.id,
             donation_type_id=donation_type.id,
             amount=Decimal(str(amounts[index])),
-            currency="USD",
+            currency="EGP",
             donation_date=NOW - timedelta(days=index * 4 + 2),
             payment_method=["Bank transfer", "Cash", "Card"][index % 3],
             receipt_number=receipt_number,

@@ -1,21 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  ArrowRight,
   ArrowDownToLine,
-  BookOpen,
   Check,
   ChevronRight,
   CirclePlus,
   Clock3,
-  Droplets,
   Download,
   FileSpreadsheet,
   HandCoins,
-  Heart,
   Landmark,
-  Mail,
-  MapPin,
-  MessageCircle,
   Pencil,
   Search,
   ShieldCheck,
@@ -23,10 +16,11 @@ import {
   UsersRound,
   X,
 } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
-import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { type FormEvent, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+
+export { LandingPage } from './landing'
 
 import { api, ApiError, download } from './api'
 import { useAuth } from './auth'
@@ -34,6 +28,7 @@ import { brand } from './branding'
 import { EmptyState, PageHeader } from './components/AppShell'
 import { LanguageSwitcher } from './localization'
 import type {
+  AidCase,
   CustodyAssignment,
   CustodyExpense,
   DashboardSummary,
@@ -43,12 +38,14 @@ import type {
   PageResponse,
   ScheduledReport,
   User,
+  WarehouseItem,
 } from './types'
 
 const chartColors = ['#0f766e', '#d97706', '#7c3aed', '#dc2626', '#2563eb', '#65a30d']
 
-function money(value: number | string | null | undefined, currency = 'USD') {
-  return new Intl.NumberFormat(undefined, { style: 'currency', currency, maximumFractionDigits: 2 }).format(Number(value ?? 0))
+function money(value: number | string | null | undefined) {
+  const locale = document.documentElement.lang === 'ar' ? 'ar-EG' : 'en-EG'
+  return new Intl.NumberFormat(locale, { style: 'currency', currency: 'EGP', maximumFractionDigits: 2 }).format(Number(value ?? 0))
 }
 
 function date(value: string | null | undefined) {
@@ -80,137 +77,6 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 
 function PageLoading() {
   return <div className="page-state">Loading data…</div>
-}
-
-function ImpactCounter({ label, detail }: { label: string; detail: string }) {
-  const [isVisible, setIsVisible] = useState(false)
-  const counterRef = useRef<HTMLDivElement | null>(null)
-
-  useEffect(() => {
-    const element = counterRef.current
-    if (!element) return
-    const observer = new IntersectionObserver(([entry]) => setIsVisible(entry.isIntersecting), { threshold: 0.35 })
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [])
-
-  return <article className={`impact-counter ${isVisible ? 'counter-visible' : ''}`} ref={counterRef}><span className="counter-placeholder">—</span><strong>{label}</strong><small>{detail}</small></article>
-}
-
-export function LandingPage() {
-  const navigate = useNavigate()
-  const [contactNotice, setContactNotice] = useState<string | null>(null)
-  const campaigns = [
-    ['Emergency Relief', 'Rapid support for people facing urgent hardship.', 'Campaign details and donation target to be confirmed.'],
-    ['Food Security', 'Helping families access essential food and household supplies.', 'Campaign details and donation target to be confirmed.'],
-    ['Community Care', 'Supporting practical local initiatives with dignity and care.', 'Campaign details and donation target to be confirmed.'],
-  ]
-  const programs: Array<[LucideIcon, string, string]> = [
-    [HandCoins, 'Emergency Relief', 'Prepared to respond when a community faces urgent needs.'],
-    [Heart, 'Food Aid', 'Food parcels and essential supplies for families.'],
-    [ShieldCheck, 'Medical Support', 'Help with treatment, medicine, and recovery.'],
-    [BookOpen, 'Education', 'Learning resources and opportunities for children.'],
-    [UsersRound, 'Orphan Sponsorship', 'Long-term care and opportunity for children.'],
-    [Droplets, 'Water Projects', 'Safe water initiatives for communities in need.'],
-    [Clock3, 'Ramadan & Eid Campaigns', 'Seasonal giving with meaningful local impact.'],
-  ]
-  return (
-    <div className="landing foundation-landing">
-      <main>
-        <section className="foundation-hero">
-          <header className="landing-nav foundation-nav">
-            <a className="brand landing-brand" href="#top"><img className="brand-logo" src={brand.logoPath} alt={`${brand.appName} logo`} /><span><strong>{brand.appName}</strong><small>مؤسسة بيتك · Together, we restore hope</small></span></a>
-            <div className="foundation-nav-links"><a href="#about">About us</a><a href="#programs">Our projects</a><a href="#contact">Contact</a></div>
-            <div className="landing-actions"><LanguageSwitcher /><button className="button button-quiet" type="button" onClick={() => navigate('/login')}>Staff sign in <ChevronRight size={17} /></button></div>
-          </header>
-          <div id="top" className="foundation-hero-content">
-            <p className="eyebrow">Baytak Foundation · مؤسسة بيتك</p>
-            <h1>Together, We Restore Hope.</h1>
-            <p>Every donation creates a better future. Baytak Foundation brings people together around practical, compassionate community support.</p>
-            <div className="foundation-hero-actions">
-              <a className="button button-primary" href="#contact">Donate <Heart size={17} /></a>
-              <a className="button button-secondary" href="#programs">Our Projects <ArrowRight size={17} /></a>
-              <a className="button button-secondary" href="#help">Become a Volunteer</a>
-              <a className="button button-quiet hero-about-link" href="#about">About Us</a>
-            </div>
-            <p className="hero-disclaimer">Online donation and volunteer sign-up channels are being prepared. Contact us directly to take part.</p>
-          </div>
-        </section>
-
-        <section id="about" className="foundation-section foundation-about">
-          <div className="section-intro"><p className="eyebrow">Who we are</p><h2>Direct help, delivered with dignity.</h2><p>Baytak Foundation is a community-focused charitable initiative. Its publicly visible work centres on aid distribution, volunteer activities, charity campaigns, and documenting support reaching beneficiaries.</p></div>
-          <div className="about-points">
-            <article><span>01</span><h3>Why we exist</h3><p>To turn generosity into practical support for people and communities facing everyday hardship.</p></article>
-            <article><span>02</span><h3>What makes us different</h3><p>We put people first, focus on direct action, and aim to show the human impact behind every contribution.</p></article>
-            <article><span>03</span><h3>Where we work</h3><p>Current regions and formal programme locations are being verified and will be published here.</p></article>
-          </div>
-        </section>
-
-        <section className="foundation-section mission-vision">
-          <article><p className="eyebrow">Mission</p><h2>Mobilise compassionate support for people who need it most.</h2><p>We aim to connect donors, volunteers, and local communities through transparent, practical charitable action.</p></article>
-          <article><p className="eyebrow">Vision</p><h2>A future where every community can meet essential needs with hope.</h2><p>Our long-term ambition is sustained community wellbeing, stronger local participation, and a culture of accountable giving.</p></article>
-        </section>
-
-        <section className="foundation-section values-section">
-          <div className="section-intro"><p className="eyebrow">Core values</p><h2>The principles behind every act of support.</h2></div>
-          <div className="values-grid">{[['Transparency', 'Clear communication about how support is delivered.'], ['Compassion', 'People are treated with care, empathy, and respect.'], ['Dignity', 'Aid protects the choices and worth of every beneficiary.'], ['Accountability', 'We take responsibility for every contribution entrusted to us.'], ['Community', 'Local people and volunteers are part of the solution.'], ['Sustainability', 'We seek support that strengthens communities beyond one moment.']].map(([title, copy]) => <article key={title}><ShieldCheck size={20} /><h3>{title}</h3><p>{copy}</p></article>)}</div>
-        </section>
-
-        <section id="impact" className="foundation-section impact-section-new">
-          <div className="section-intro"><p className="eyebrow">Our impact</p><h2>Every figure represents a person, family, and community.</h2><p>Verified impact figures will be published as the foundation’s reporting information becomes available.</p></div>
-          <div className="impact-counter-grid">
-            <ImpactCounter label="Families helped" detail="Impact figure to be verified" />
-            <ImpactCounter label="Food packages distributed" detail="Impact figure to be verified" />
-            <ImpactCounter label="Water projects" detail="Impact figure to be verified" />
-            <ImpactCounter label="Volunteers" detail="Impact figure to be verified" />
-            <ImpactCounter label="Regions served" detail="Impact figure to be verified" />
-            <ImpactCounter label="Donations delivered" detail="Impact figure to be verified" />
-          </div>
-        </section>
-
-        <section id="campaigns" className="foundation-section campaigns-section">
-          <div className="section-heading-row"><div className="section-intro"><p className="eyebrow">Current campaigns</p><h2>Campaign information is being prepared.</h2></div><span className="placeholder-badge">Verified campaign data pending</span></div>
-          <div className="campaign-grid">{campaigns.map(([title, copy, note], index) => <article className="campaign-card" key={title}><div className={`campaign-image image-placeholder image-${index + 1}`}><span>Campaign image placeholder</span></div><div className="campaign-card-body"><p className="campaign-kicker">Active campaign · details pending</p><h3>{title}</h3><p>{copy}</p><div className="campaign-progress"><div style={{ width: '0%' }} /></div><small>{note}</small><a className="text-button" href="#contact">Donate to this campaign <ArrowRight size={15} /></a></div></article>)}</div>
-        </section>
-
-        <section id="programs" className="foundation-section programs-section">
-          <div className="section-intro"><p className="eyebrow">Our programs</p><h2>Areas of support we are ready to grow.</h2><p>These programme areas reflect the foundation’s visible community-centred work and will be refined as formal programme information is published.</p></div>
-          <div className="program-grid">{programs.map(([Icon, title, copy]) => <article key={title}><Icon size={23} /><h3>{title}</h3><p>{copy}</p></article>)}</div>
-        </section>
-
-        <section className="foundation-section stories-section">
-          <div className="section-intro"><p className="eyebrow">Success stories</p><h2>Stories of change will live here.</h2><p>With beneficiary consent and verified information, this area will share the people and communities behind the work.</p></div>
-          <div className="before-after"><article className="image-placeholder"><span>Before photo placeholder</span></article><div><p className="eyebrow">Before / after</p><h3>From immediate need to renewed stability.</h3><p>Impact stories and documented outcomes are not yet available for publication.</p></div><article className="image-placeholder"><span>After photo placeholder</span></article></div>
-        </section>
-
-        <section className="foundation-section testimonials-gallery">
-          <div><p className="eyebrow">Testimonials</p><h2>Voices from the community.</h2><blockquote>“Testimonial content will be added after verified consent and publication approval.”</blockquote><small>— Placeholder for beneficiary, volunteer, or donor story</small></div>
-          <div><p className="eyebrow">Gallery & media</p><h2>Field moments, photos, and video.</h2><div className="gallery-grid">{['Gallery image placeholder', 'Video placeholder', 'Event photo placeholder', 'Volunteer activity placeholder'].map((label) => <div className="image-placeholder" key={label}><span>{label}</span></div>)}</div></div>
-        </section>
-
-        <section id="help" className="foundation-section help-section">
-          <div className="section-intro"><p className="eyebrow">How you can help</p><h2>Make meaningful action possible.</h2></div>
-          <div className="help-grid"><article><HandCoins size={27} /><h3>Donate</h3><p>Support a campaign or programme when donation channels are published.</p><a href="#contact">Ask about donating <ArrowRight size={15} /></a></article><article><UsersRound size={27} /><h3>Volunteer</h3><p>Offer your time, skills, and local knowledge to community initiatives.</p><a href="#contact">Volunteer with us <ArrowRight size={15} /></a></article><article><Heart size={27} /><h3>Partner with us</h3><p>Build practical partnerships that strengthen community support.</p><a href="#contact">Start a partnership <ArrowRight size={15} /></a></article></div>
-        </section>
-
-        <section className="foundation-section transparency-section">
-          <div className="section-intro"><p className="eyebrow">Transparency</p><h2>Trust is built through openness.</h2><p>Formal public reports, policies, registration information, and partner lists were not available at the time this page was prepared. This section is reserved for their publication.</p></div>
-          <div className="transparency-grid">{['Annual reports', 'Financial reports', 'Donation process', 'Frequently asked questions', 'Policies', 'Partners'].map((item) => <article key={item}><FileSpreadsheet size={19} /><span>{item}</span><small>Publication pending</small></article>)}</div>
-        </section>
-
-        <section className="foundation-section news-section">
-          <div className="section-heading-row"><div className="section-intro"><p className="eyebrow">News & events</p><h2>Latest updates from Baytak.</h2></div><span className="placeholder-badge">Updates will be published here</span></div>
-          <div className="news-grid"><article><p>FIELD UPDATE</p><h3>Community activity update</h3><span>Published updates are currently shared on the foundation’s Facebook page.</span></article><article><p>UPCOMING EVENT</p><h3>Event details to be announced</h3><span>Dates, location, and registration information will be added here.</span></article></div>
-        </section>
-
-        <section id="contact" className="foundation-section contact-section">
-          <div className="contact-intro"><p className="eyebrow">Contact</p><h2>Let’s create a better future together.</h2><p>Reach out to ask about donations, volunteering, partnerships, or the foundation’s community work.</p><div className="contact-list"><a href={`mailto:${brand.contactEmail}`}><Mail size={18} /> {brand.contactEmail}</a><span><MessageCircle size={18} /> WhatsApp contact to be added</span><span><MapPin size={18} /> Address and service locations to be added</span><span><UsersRound size={18} /> Facebook is currently the foundation’s primary public channel</span></div></div>
-          <form className="contact-form" onSubmit={(event) => { event.preventDefault(); setContactNotice('Form delivery is being configured. Please contact the foundation by email in the meantime.') }}><label>Name<input required placeholder="Your name" /></label><label>Email<input type="email" required placeholder="you@example.com" /></label><label>How can we help?<textarea required rows={4} placeholder="Tell us how you would like to support Baytak Foundation" /></label><button className="button button-primary" type="submit">Send message <ArrowRight size={17} /></button>{contactNotice && <p className="contact-notice">{contactNotice}</p>}</form>
-        </section>
-      </main>
-      <footer className="foundation-footer"><div className="brand"><img className="brand-logo" src={brand.logoPath} alt="" /><span><strong>{brand.appName}</strong><small>مؤسسة بيتك</small></span></div><span>© {new Date().getFullYear()} {brand.appName}. Built around compassion, dignity, and accountability.</span><a href="#top">Back top</a></footer>
-    </div>
-  )
 }
 
 export function LoginPage() {
@@ -321,6 +187,64 @@ export function DonationTypesPage() {
   </>
 }
 
+export function WarehousePage() {
+  const queryClient = useQueryClient()
+  const [showForm, setShowForm] = useState(false)
+  const [editingItem, setEditingItem] = useState<WarehouseItem | null>(null)
+  const [search, setSearch] = useState('')
+  const items = useQuery({
+    queryKey: ['warehouse', search],
+    queryFn: () => api<WarehouseItem[]>(`/warehouse?${new URLSearchParams(search ? { search } : {}).toString()}`),
+  })
+  const saveItem = useMutation({
+    mutationFn: ({ itemId, payload }: { itemId?: number; payload: unknown }) =>
+      itemId
+        ? api<WarehouseItem>(`/warehouse/${itemId}`, { method: 'PATCH', body: JSON.stringify(payload) })
+        : api<WarehouseItem>('/warehouse', { method: 'POST', body: JSON.stringify(payload) }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['warehouse'] }); setShowForm(false); setEditingItem(null) },
+  })
+  const deactivateItem = useMutation({
+    mutationFn: (id: number) => api(`/warehouse/${id}`, { method: 'DELETE' }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['warehouse'] }),
+  })
+  return <>
+    <PageHeader eyebrow="Inventory" title="Warehouse" description="Track stock, supplies, and storage locations used by Baytak programmes." action={<button className="button button-primary" onClick={() => { setEditingItem(null); setShowForm(true) }}><CirclePlus size={18} /> Add item</button>} />
+    <section className="filter-panel"><label className="search-field"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name, SKU, or location" /></label><span>{items.data?.length ?? 0} items</span></section>
+    {items.isLoading ? <PageLoading /> : items.error ? <ErrorNotice error={items.error} /> : items.data?.length ? <div className="table-wrap"><table><thead><tr><th>Item</th><th>SKU</th><th>Quantity</th><th>Location</th><th>Status</th><th>Actions</th></tr></thead><tbody>{items.data.map((item) => <tr key={item.id}><td><strong>{item.name}</strong><small className="table-description">{item.notes || 'No notes'}</small></td><td>{item.sku || '—'}</td><td><strong>{item.quantity}</strong> {item.unit}</td><td>{item.location || '—'}</td><td><Status value={item.is_active ? 'active' : 'inactive'} /></td><td><div className="inline-actions"><button className="text-button" onClick={() => { setEditingItem(item); setShowForm(true) }}>Edit</button>{item.is_active && <button className="text-button danger" onClick={() => { if (window.confirm(`Deactivate ${item.name}?`)) deactivateItem.mutate(item.id) }}>Deactivate</button>}</div></td></tr>)}</tbody></table></div> : <EmptyState title="No warehouse items" message="Add supplies and materials to start tracking stock." />}
+    {showForm && <Modal title={editingItem ? 'Edit warehouse item' : 'Add warehouse item'} onClose={() => { setShowForm(false); setEditingItem(null) }}><form className="form-grid" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); saveItem.mutate({ itemId: editingItem?.id, payload: { name: form.get('name'), sku: form.get('sku') || null, quantity: Number(form.get('quantity')), unit: form.get('unit'), location: form.get('location') || null, notes: form.get('notes') || null, is_active: form.get('is_active') === 'on' } }) }}><label className="form-span-2">Item name<input name="name" defaultValue={editingItem?.name} required autoFocus /></label><label>SKU<input name="sku" defaultValue={editingItem?.sku ?? ''} /></label><label>Unit<input name="unit" defaultValue={editingItem?.unit ?? 'piece'} required /></label><label>Quantity<input name="quantity" type="number" min="0" step="0.01" defaultValue={editingItem?.quantity ?? 0} required /></label><label>Location<input name="location" defaultValue={editingItem?.location ?? ''} /></label><label className="form-span-2">Notes<textarea name="notes" rows={3} defaultValue={editingItem?.notes ?? ''} /></label><label className="form-span-2 checkbox-label"><input name="is_active" type="checkbox" defaultChecked={editingItem?.is_active ?? true} /> Active in warehouse</label><ErrorNotice error={saveItem.error} /><div className="form-actions form-span-2"><button type="button" className="button button-secondary" onClick={() => { setShowForm(false); setEditingItem(null) }}>Cancel</button><button className="button button-primary" disabled={saveItem.isPending}>{editingItem ? 'Save changes' : 'Create item'}</button></div></form></Modal>}
+  </>
+}
+
+export function CasesPage() {
+  const queryClient = useQueryClient()
+  const [showForm, setShowForm] = useState(false)
+  const [editingCase, setEditingCase] = useState<AidCase | null>(null)
+  const [filters, setFilters] = useState({ search: '', status: '', priority: '', category: '' })
+  const query = new URLSearchParams({ page_size: '100' })
+  if (filters.search) query.set('search', filters.search)
+  if (filters.status) query.set('status', filters.status)
+  if (filters.priority) query.set('priority', filters.priority)
+  if (filters.category) query.set('category', filters.category)
+  const cases = useQuery({ queryKey: ['cases', filters], queryFn: () => api<PageResponse<AidCase>>(`/cases?${query.toString()}`) })
+  const saveCase = useMutation({
+    mutationFn: ({ caseId, payload }: { caseId?: number; payload: unknown }) =>
+      caseId
+        ? api<AidCase>(`/cases/${caseId}`, { method: 'PATCH', body: JSON.stringify(payload) })
+        : api<AidCase>('/cases', { method: 'POST', body: JSON.stringify(payload) }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['cases'] }); setShowForm(false); setEditingCase(null) },
+  })
+  const cancelCase = useMutation({
+    mutationFn: (id: number) => api(`/cases/${id}`, { method: 'DELETE' }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cases'] }),
+  })
+  return <>
+    <PageHeader eyebrow="Beneficiary support" title="Cases" description="Register and follow medical, food, and emergency support cases." action={<button className="button button-primary" onClick={() => { setEditingCase(null); setShowForm(true) }}><CirclePlus size={18} /> Add case</button>} />
+    <section className="filter-panel"><label>Search<input value={filters.search} onChange={(event) => setFilters({ ...filters, search: event.target.value })} placeholder="Name, phone, or case number" /></label><label>Status<select value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })}><option value="">All statuses</option><option value="open">Open</option><option value="in_progress">In progress</option><option value="closed">Closed</option><option value="cancelled">Cancelled</option></select></label><label>Priority<select value={filters.priority} onChange={(event) => setFilters({ ...filters, priority: event.target.value })}><option value="">All priorities</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select></label><label>Category<input value={filters.category} onChange={(event) => setFilters({ ...filters, category: event.target.value })} placeholder="Medical, feeding…" /></label><button className="text-button" type="button" onClick={() => setFilters({ search: '', status: '', priority: '', category: '' })}>Clear filters</button><span>{cases.data?.total ?? 0} cases</span></section>
+    {cases.isLoading ? <PageLoading /> : cases.error ? <ErrorNotice error={cases.error} /> : cases.data?.items.length ? <div className="table-wrap"><table><thead><tr><th>Case</th><th>Beneficiary</th><th>Category</th><th>Priority</th><th>Status</th><th>Requested</th><th>Actions</th></tr></thead><tbody>{cases.data.items.map((item) => <tr key={item.id}><td><strong>{item.case_number}</strong></td><td><strong>{item.beneficiary_name}</strong><small className="table-description">{item.phone || 'No phone'}</small></td><td>{item.category}</td><td>{item.priority}</td><td><Status value={item.status} /></td><td><strong>{item.requested_amount != null ? money(item.requested_amount) : '—'}</strong></td><td><div className="inline-actions"><button className="text-button" onClick={() => { setEditingCase(item); setShowForm(true) }}>Edit</button>{item.status !== 'cancelled' && item.status !== 'closed' && <button className="text-button danger" onClick={() => { if (window.confirm(`Cancel case ${item.case_number}?`)) cancelCase.mutate(item.id) }}>Cancel</button>}</div></td></tr>)}</tbody></table></div> : <EmptyState title="No cases found" message="Register a support case to begin follow-up." />}
+    {showForm && <Modal title={editingCase ? 'Edit case' : 'Add case'} onClose={() => { setShowForm(false); setEditingCase(null) }}><form className="form-grid" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); const requested = form.get('requested_amount'); const approved = form.get('approved_amount'); saveCase.mutate({ caseId: editingCase?.id, payload: { case_number: form.get('case_number') || null, beneficiary_name: form.get('beneficiary_name'), phone: form.get('phone') || null, category: form.get('category'), status: form.get('status'), priority: form.get('priority'), description: form.get('description') || null, requested_amount: requested ? Number(requested) : null, approved_amount: approved ? Number(approved) : null } }) }}><label>Case number<input name="case_number" defaultValue={editingCase?.case_number ?? ''} placeholder="Auto if empty" /></label><label>Beneficiary name<input name="beneficiary_name" defaultValue={editingCase?.beneficiary_name} required autoFocus /></label><label>Phone<input name="phone" type="tel" defaultValue={editingCase?.phone ?? ''} /></label><label>Category<input name="category" defaultValue={editingCase?.category ?? ''} required placeholder="Medical, feeding, education…" /></label><label>Status<select name="status" defaultValue={editingCase?.status ?? 'open'}><option value="open">Open</option><option value="in_progress">In progress</option><option value="closed">Closed</option><option value="cancelled">Cancelled</option></select></label><label>Priority<select name="priority" defaultValue={editingCase?.priority ?? 'medium'}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select></label><label>Requested amount (EGP)<input name="requested_amount" type="number" min="0" step="0.01" defaultValue={editingCase?.requested_amount ?? ''} /></label><label>Approved amount (EGP)<input name="approved_amount" type="number" min="0" step="0.01" defaultValue={editingCase?.approved_amount ?? ''} /></label><label className="form-span-2">Description<textarea name="description" rows={4} defaultValue={editingCase?.description ?? ''} /></label><ErrorNotice error={saveCase.error} /><div className="form-actions form-span-2"><button type="button" className="button button-secondary" onClick={() => { setShowForm(false); setEditingCase(null) }}>Cancel</button><button className="button button-primary" disabled={saveCase.isPending}>{editingCase ? 'Save changes' : 'Create case'}</button></div></form></Modal>}
+  </>
+}
+
 export function DonationsPage() {
   const { hasRole } = useAuth()
   const queryClient = useQueryClient()
@@ -343,8 +267,8 @@ export function DonationsPage() {
   return <>
     <PageHeader eyebrow="Income records" title="Donations" description="Record contributions accurately and keep every receipt traceable." action={<button className="button button-primary" onClick={() => { setEditingDonation(null); setShowForm(true) }}><CirclePlus size={18} /> Record donation</button>} />
     <section className="filter-panel donation-filters"><label>Donor<select value={filters.donorId} onChange={(event) => setFilters({ ...filters, donorId: event.target.value })}><option value="">All donors</option>{donors.data?.items.map((donor) => <option key={donor.id} value={donor.id}>{donor.first_name} {donor.last_name}</option>)}</select></label><label>Donation type<select value={filters.typeId} onChange={(event) => setFilters({ ...filters, typeId: event.target.value })}><option value="">All types</option>{types.data?.map((type) => <option key={type.id} value={type.id}>{type.type_name}</option>)}</select></label><label>Status<select value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })}><option value="">All statuses</option><option value="confirmed">Confirmed</option><option value="cancelled">Cancelled</option><option value="refunded">Refunded</option></select></label><label>Minimum amount<input type="number" min="0" step="0.01" value={filters.amountMin} onChange={(event) => setFilters({ ...filters, amountMin: event.target.value })} /></label><label>Maximum amount<input type="number" min="0" step="0.01" value={filters.amountMax} onChange={(event) => setFilters({ ...filters, amountMax: event.target.value })} /></label><label>From<input type="date" value={filters.startDate} onChange={(event) => setFilters({ ...filters, startDate: event.target.value })} /></label><label>To<input type="date" value={filters.endDate} onChange={(event) => setFilters({ ...filters, endDate: event.target.value })} /></label><button className="text-button" type="button" onClick={() => setFilters({ donorId: '', typeId: '', status: '', amountMin: '', amountMax: '', startDate: '', endDate: '' })}>Clear filters</button><span>{donations.data?.total ?? 0} donations</span></section>
-    {donations.isLoading ? <PageLoading /> : donations.error ? <ErrorNotice error={donations.error} /> : donations.data?.items.length ? <div className="table-wrap"><table><thead><tr><th>Date</th><th>Donor</th><th>Fund</th><th>Receipt</th><th>Status</th><th>Amount</th>{hasRole('admin', 'finance') && <th>Actions</th>}</tr></thead><tbody>{donations.data.items.map((item) => <tr key={item.id}><td>{date(item.donation_date)}</td><td><strong>{item.donor.first_name} {item.donor.last_name}</strong></td><td>{item.donation_type.type_name}</td><td>{item.receipt_number || '—'}</td><td><Status value={item.status} /></td><td><strong>{money(item.amount, item.currency)}</strong></td>{hasRole('admin', 'finance') && <td><div className="inline-actions"><button className="text-button" onClick={() => { setEditingDonation(item); setShowForm(true) }}>Edit</button>{item.status === 'confirmed' && <button className="text-button danger" onClick={() => { if (window.confirm('Cancel this donation? The record will be retained for audit.')) cancelDonation.mutate(item.id) }}>Cancel</button>}</div></td>}</tr>)}</tbody></table></div> : <EmptyState title="No donations found" message="Adjust the filters or record a donation." />}
-    {showForm && <Modal title={editingDonation ? 'Edit donation' : 'Record a donation'} onClose={() => { setShowForm(false); setEditingDonation(null) }}><form className="form-grid" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); saveDonation.mutate({ donationId: editingDonation?.id, payload: { donor_id: Number(form.get('donor_id')), donation_type_id: Number(form.get('donation_type_id')), amount: Number(form.get('amount')), currency: form.get('currency'), donation_date: new Date(String(form.get('donation_date'))).toISOString(), payment_method: form.get('payment_method') || null, receipt_number: form.get('receipt_number') || null, status: form.get('status') } }) }}><label className="form-span-2">Donor<select name="donor_id" defaultValue={editingDonation?.donor_id ?? ''} required><option value="">Choose a donor</option>{donors.data?.items.map((donor) => <option key={donor.id} value={donor.id}>{donor.first_name} {donor.last_name}</option>)}</select></label><label className="form-span-2">Donation type<select name="donation_type_id" defaultValue={editingDonation?.donation_type_id ?? ''} required><option value="">Choose a fund</option>{types.data?.map((type) => <option key={type.id} value={type.id} disabled={!type.is_active && type.id !== editingDonation?.donation_type_id}>{type.type_name}{type.is_active ? '' : ' (inactive)'}</option>)}</select></label><label>Amount<input name="amount" type="number" min="0.01" step="0.01" defaultValue={editingDonation?.amount} required /></label><label>Currency<select name="currency" defaultValue={editingDonation?.currency ?? 'USD'}><option>USD</option><option>EUR</option><option>GBP</option></select></label><label>Received at<input name="donation_date" type="datetime-local" defaultValue={editingDonation ? new Date(editingDonation.donation_date).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16)} required /></label><label>Payment method<input name="payment_method" defaultValue={editingDonation?.payment_method ?? ''} placeholder="Cash, transfer…" /></label><label>Record status<select name="status" defaultValue={editingDonation?.status ?? 'confirmed'}><option value="confirmed">Confirmed</option><option value="cancelled">Cancelled</option><option value="refunded">Refunded</option></select></label><label>Receipt number<input name="receipt_number" defaultValue={editingDonation?.receipt_number ?? ''} /></label><ErrorNotice error={saveDonation.error} /><div className="form-actions form-span-2"><button type="button" className="button button-secondary" onClick={() => { setShowForm(false); setEditingDonation(null) }}>Cancel</button><button className="button button-primary" disabled={saveDonation.isPending}>{editingDonation ? 'Save changes' : 'Save donation'}</button></div></form></Modal>}
+    {donations.isLoading ? <PageLoading /> : donations.error ? <ErrorNotice error={donations.error} /> : donations.data?.items.length ? <div className="table-wrap"><table><thead><tr><th>Date</th><th>Donor</th><th>Fund</th><th>Receipt</th><th>Status</th><th>Amount</th>{hasRole('admin', 'finance') && <th>Actions</th>}</tr></thead><tbody>{donations.data.items.map((item) => <tr key={item.id}><td>{date(item.donation_date)}</td><td><strong>{item.donor.first_name} {item.donor.last_name}</strong></td><td>{item.donation_type.type_name}</td><td>{item.receipt_number || '—'}</td><td><Status value={item.status} /></td><td><strong>{money(item.amount)}</strong></td>{hasRole('admin', 'finance') && <td><div className="inline-actions"><button className="text-button" onClick={() => { setEditingDonation(item); setShowForm(true) }}>Edit</button>{item.status === 'confirmed' && <button className="text-button danger" onClick={() => { if (window.confirm('Cancel this donation? The record will be retained for audit.')) cancelDonation.mutate(item.id) }}>Cancel</button>}</div></td>}</tr>)}</tbody></table></div> : <EmptyState title="No donations found" message="Adjust the filters or record a donation." />}
+    {showForm && <Modal title={editingDonation ? 'Edit donation' : 'Record a donation'} onClose={() => { setShowForm(false); setEditingDonation(null) }}><form className="form-grid" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); saveDonation.mutate({ donationId: editingDonation?.id, payload: { donor_id: Number(form.get('donor_id')), donation_type_id: Number(form.get('donation_type_id')), amount: Number(form.get('amount')), currency: 'EGP', donation_date: new Date(String(form.get('donation_date'))).toISOString(), payment_method: form.get('payment_method') || null, receipt_number: form.get('receipt_number') || null, status: form.get('status') } }) }}><label className="form-span-2">Donor<select name="donor_id" defaultValue={editingDonation?.donor_id ?? ''} required><option value="">Choose a donor</option>{donors.data?.items.map((donor) => <option key={donor.id} value={donor.id}>{donor.first_name} {donor.last_name}</option>)}</select></label><label className="form-span-2">Donation type<select name="donation_type_id" defaultValue={editingDonation?.donation_type_id ?? ''} required><option value="">Choose a fund</option>{types.data?.map((type) => <option key={type.id} value={type.id} disabled={!type.is_active && type.id !== editingDonation?.donation_type_id}>{type.type_name}{type.is_active ? '' : ' (inactive)'}</option>)}</select></label><label>Amount (EGP)<input name="amount" type="number" min="0.01" step="0.01" defaultValue={editingDonation?.amount} required /></label><label>Received at<input name="donation_date" type="datetime-local" defaultValue={editingDonation ? new Date(editingDonation.donation_date).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16)} required /></label><label>Payment method<input name="payment_method" defaultValue={editingDonation?.payment_method ?? ''} placeholder="Cash, transfer…" /></label><label>Record status<select name="status" defaultValue={editingDonation?.status ?? 'confirmed'}><option value="confirmed">Confirmed</option><option value="cancelled">Cancelled</option><option value="refunded">Refunded</option></select></label><label>Receipt number<input name="receipt_number" defaultValue={editingDonation?.receipt_number ?? ''} /></label><ErrorNotice error={saveDonation.error} /><div className="form-actions form-span-2"><button type="button" className="button button-secondary" onClick={() => { setShowForm(false); setEditingDonation(null) }}>Cancel</button><button className="button button-primary" disabled={saveDonation.isPending}>{editingDonation ? 'Save changes' : 'Save donation'}</button></div></form></Modal>}
   </>
 }
 

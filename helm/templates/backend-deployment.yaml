@@ -14,12 +14,16 @@ spec:
     matchLabels:
       app: backend
 
-  template:
-    metadata:
-      labels:
-        app: backend
+    template:
+      metadata:
+        labels:
+          app: backend
+        annotations:
+          prometheus.io/scrape: "true"
+          prometheus.io/port: "{{ .Values.backend.port }}"
+          prometheus.io/path: "/metrics"
 
-    spec:
+      spec:
       imagePullSecrets:
         - name: {{ .Values.imagePullSecrets.name }}
       containers:

@@ -132,3 +132,33 @@ export interface ScheduledReport {
   created_at: string
   updated_at: string
 }
+
+export interface WarehouseItem {
+  id: number
+  name: string
+  sku?: string | null
+  quantity: number
+  unit: string
+  location?: string | null
+  notes?: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface AidCase {
+  id: number
+  case_number: string
+  beneficiary_name: string
+  phone?: string | null
+  category: string
+  status: 'open' | 'in_progress' | 'closed' | 'cancelled'
+  priority: 'low' | 'medium' | 'high' | 'urgent'
+  description?: string | null
+  requested_amount?: number | null
+  approved_amount?: number | null
+  created_by_user_id: number
+  assigned_user_id?: number | null
+  created_at: string
+  updated_at: string
+}

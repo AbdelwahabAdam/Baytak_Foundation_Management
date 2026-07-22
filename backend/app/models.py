@@ -32,6 +32,20 @@ class DonationStatus(str, enum.Enum):
     refunded = "refunded"
 
 
+class CaseStatus(str, enum.Enum):
+    open = "open"
+    in_progress = "in_progress"
+    closed = "closed"
+    cancelled = "cancelled"
+
+
+class CasePriority(str, enum.Enum):
+    low = "low"
+    medium = "medium"
+    high = "high"
+    urgent = "urgent"
+
+
 class CustodyStatus(str, enum.Enum):
     active = "active"
     closed = "closed"
@@ -213,7 +227,7 @@ class Donation(TimestampMixin, Base):
     donor_id: Mapped[int] = mapped_column(ForeignKey("donors.id"), index=True)
     donation_type_id: Mapped[int] = mapped_column(ForeignKey("donation_types.id"), index=True)
     amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), index=True)
-    currency: Mapped[str] = mapped_column(String(3), default="USD", server_default="USD")
+    currency: Mapped[str] = mapped_column(String(3), default="EGP", server_default="EGP")
     donation_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     payment_method: Mapped[str | None] = mapped_column(String(100))
     receipt_number: Mapped[str | None] = mapped_column(String(100), unique=True)
@@ -349,3 +363,39 @@ class AuditLog(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, server_default=func.now()
     )
+
+
+class WarehouseItem(TimestampMixin, Base):
+    __tablename__ = "warehouse_items"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(150), index=True)
+    sku: Mapped[str | None] = mapped_column(String(80), unique=True)
+    quantity: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0, server_default="0")
+    unit: Mapped[str] = mapped_column(String(40), default="piece", server_default="piece")
+    location: Mapped[str | None] = mapped_column(String(150))
+    notes: Mapped[str | None] = mapped_column(Text)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+
+
+class AidCase(TimestampMixin, Base):
+    __tablename__ = "aid_cases"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    case_number: Mapped[str] = mapped_column(String(50), unique=True, index=True)
+    beneficiary_name: Mapped[str] = mapped_column(String(200), index=True)
+    phone: Mapped[str | None] = mapped_column(String(50))
+    category: Mapped[str] = mapped_column(String(100), index=True)
+    status: Mapped[CaseStatus] = mapped_column(
+        Enum(CaseStatus, name="case_status"), default=CaseStatus.open, index=True
+    )
+    priority: Mapped[CasePriority] = mapped_column(
+        Enum(CasePriority, name="case_priority"), default=CasePriority.medium
+    )
+    description: Mapped[str | None] = mapped_column(Text)
+    requested_amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
+    approved_amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
+    created_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    assigned_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), index=True)
+    created_by: Mapped[User] = relationship(foreign_keys=[created_by_user_id])
+    assigned_user: Mapped[User | None] = relationship(foreign_keys=[assigned_user_id])

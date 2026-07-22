@@ -6,6 +6,7 @@ import { LocaleProvider } from './localization'
 import { ForgotPasswordPage, ResetPasswordPage } from './password-pages'
 import {
   ApprovalsPage,
+  CasesPage,
   CustodyPage,
   DashboardPage,
   DonationTypesPage,
@@ -17,6 +18,7 @@ import {
   ReportsPage,
   ScheduledReportsPage,
   UsersPage,
+  WarehousePage,
 } from './pages'
 
 function AppLayout() {
@@ -49,6 +51,8 @@ function App() {
               <Route path="/donors" element={<DonorsPage />} />
               <Route path="/donations" element={<DonationsPage />} />
               <Route path="/donation-types" element={<DonationTypesPage />} />
+              <Route path="/warehouse" element={<WarehousePage />} />
+              <Route path="/cases" element={<CasesPage />} />
               <Route path="/custody" element={<CustodyPage />} />
               <Route path="/approvals" element={<ApprovalsPage />} />
               <Route path="/reports" element={<ReportsPage />} />

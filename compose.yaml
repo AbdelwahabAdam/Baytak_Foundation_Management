@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-charity}
       POSTGRES_USER: ${POSTGRES_USER:-charity}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-charity}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
@@ -19,14 +19,18 @@ services:
     build:
       context: ./backend
     environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-charity}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-charity}
+      DATABASE_HOST: db
+      DATABASE_PORT: 5432
+      DATABASE_NAME: ${POSTGRES_DB:-charity}
+      DATABASE_USER: ${POSTGRES_USER:-charity}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-charity}
       APP_NAME: ${APP_NAME:-Baytak Foundation API}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-this-local-development-secret-before-production}
-      CORS_ORIGINS: http://localhost:8080,http://localhost:5173
+      ALLOWED_ORIGINS: '["http://localhost:8080","http://localhost:5173"]'
       FRONTEND_APP_URL: ${FRONTEND_APP_URL:-http://localhost:8080}
       PASSWORD_RESET_MINUTES: ${PASSWORD_RESET_MINUTES:-30}
       BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-admin@charity.local}
-      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-ChangeMe123!}
       REPORT_STORAGE_PATH: /app/reports
       SCHEDULER_ENABLED: ${SCHEDULER_ENABLED:-true}
       SMTP_HOST: ${SMTP_HOST:-}
@@ -42,6 +46,10 @@ services:
       - "8000:8000"
     volumes:
       - report_data:/app/reports
+    networks:
+      default:
+        aliases:
+          - backend-service
 
   frontend:
     build:
@@ -53,12 +61,14 @@ services:
         VITE_APP_DESCRIPTION: ${VITE_APP_DESCRIPTION:-Transparent, people-first charity operations.}
         VITE_APP_CONTACT_EMAIL: ${VITE_APP_CONTACT_EMAIL:-info@baytakfoundation.org}
         VITE_APP_LOGO_PATH: ${VITE_APP_LOGO_PATH:-/baytak-logo.png}
-        VITE_DEFAULT_LOCALE: ${VITE_DEFAULT_LOCALE:-en}
+        VITE_DEFAULT_LOCALE: ${VITE_DEFAULT_LOCALE:-ar}
         VITE_NAVIGATION_TITLE: ${VITE_NAVIGATION_TITLE:-Workspace}
         VITE_TAB_OVERVIEW: ${VITE_TAB_OVERVIEW:-Overview}
         VITE_TAB_DONORS: ${VITE_TAB_DONORS:-Donors}
         VITE_TAB_DONATIONS: ${VITE_TAB_DONATIONS:-Donations}
         VITE_TAB_DONATION_TYPES: ${VITE_TAB_DONATION_TYPES:-Donation types}
+        VITE_TAB_WAREHOUSE: ${VITE_TAB_WAREHOUSE:-Warehouse}
+        VITE_TAB_CASES: ${VITE_TAB_CASES:-Cases}
         VITE_TAB_CUSTODY: ${VITE_TAB_CUSTODY:-Custody}
         VITE_TAB_APPROVALS: ${VITE_TAB_APPROVALS:-Approvals}
         VITE_TAB_REPORTS: ${VITE_TAB_REPORTS:-Reports}
@@ -79,7 +89,7 @@ services:
     depends_on:
       - backend
     ports:
-      - "8080:80"
+      - "${FRONTEND_PORT:-8080}:80"
 
 volumes:
   postgres_data:

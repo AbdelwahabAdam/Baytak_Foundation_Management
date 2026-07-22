@@ -103,7 +103,9 @@ def create_donation(
 ) -> Donation:
     validate_donation_references(db, payload.donor_id, payload.donation_type_id)
     validate_receipt(db, payload.receipt_number)
-    donation = Donation(**payload.model_dump(), created_by_user_id=current_user.id)
+    values = payload.model_dump()
+    values["currency"] = "EGP"
+    donation = Donation(**values, created_by_user_id=current_user.id)
     db.add(donation)
     db.flush()
     add_audit_log(
@@ -133,6 +135,7 @@ def update_donation(
 ) -> Donation:
     donation = get_donation_or_404(db, donation_id)
     values = payload.model_dump(exclude_unset=True)
+    values["currency"] = "EGP"
     donor_id = values.get("donor_id", donation.donor_id)
     type_id = values.get("donation_type_id", donation.donation_type_id)
     validate_donation_references(db, donor_id, type_id, allow_inactive_type=True)

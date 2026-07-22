@@ -5,6 +5,12 @@ kind: Service
 metadata:
   name: backend-service
   namespace: {{ .Values.namespace.name }}
+  labels:
+    app: backend
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "{{ .Values.backend.port }}"
+    prometheus.io/path: "/metrics"
 
 spec:
   type: ClusterIP

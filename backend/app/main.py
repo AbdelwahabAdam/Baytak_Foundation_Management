@@ -1,16 +1,50 @@
+import logging
+import time
 from contextlib import asynccontextmanager
 
 from apscheduler.schedulers.background import BackgroundScheduler
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_client import Counter, Histogram
+from prometheus_fastapi_instrumentator import Instrumentator
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import SessionLocal
 from app.models import Role, User
-from app.routers import audit, auth, custody, dashboard, donation_types, donations, donors, reports, users
+from app.routers import (
+    audit,
+    auth,
+    cases,
+    custody,
+    dashboard,
+    donation_types,
+    donations,
+    donors,
+    reports,
+    users,
+    warehouse,
+)
 from app.routers.reports import process_due_scheduled_reports
 from app.security import hash_password
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+)
+logger = logging.getLogger("baytak.api")
+
+REQUEST_COUNT = Counter(
+    "baytak_http_requests_total",
+    "Total HTTP requests handled by the Baytak API",
+    ["method", "endpoint", "status_code"],
+)
+REQUEST_LATENCY = Histogram(
+    "baytak_http_request_duration_seconds",
+    "HTTP request latency in seconds",
+    ["method", "endpoint"],
+    buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10),
+)
 
 
 def seed_roles_and_admin(db: Session) -> None:
@@ -59,6 +93,7 @@ async def lifespan(_: FastAPI):
             replace_existing=True,
         )
         scheduler.start()
+        logger.info("Scheduled report delivery enabled")
     try:
         yield
     finally:
@@ -83,6 +118,33 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def log_and_observe_requests(request: Request, call_next):
+    started = time.perf_counter()
+    response = await call_next(request)
+    elapsed = time.perf_counter() - started
+    endpoint = request.url.path
+    method = request.method
+    status_code = str(response.status_code)
+    REQUEST_COUNT.labels(method=method, endpoint=endpoint, status_code=status_code).inc()
+    REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(elapsed)
+    if endpoint not in {"/health", "/metrics"}:
+        logger.info(
+            "method=%s path=%s status=%s duration_ms=%.1f",
+            method,
+            endpoint,
+            status_code,
+            elapsed * 1000,
+        )
+    return response
+
+
+Instrumentator(
+    should_group_status_codes=False,
+    excluded_handlers=["/metrics", "/health"],
+).instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+
+
 @app.get("/health", tags=["Health"])
 def health_check() -> dict[str, str]:
     return {"status": "ok"}
@@ -102,3 +164,5 @@ app.include_router(dashboard.router, prefix=api_prefix)
 app.include_router(reports.router, prefix=api_prefix)
 app.include_router(reports.scheduled_router, prefix=api_prefix)
 app.include_router(audit.router, prefix=api_prefix)
+app.include_router(warehouse.router, prefix=api_prefix)
+app.include_router(cases.router, prefix=api_prefix)

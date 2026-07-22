@@ -5,6 +5,8 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.models import (
+    CasePriority,
+    CaseStatus,
     CustodyStatus,
     DonationStatus,
     ExpenseStatus,
@@ -189,7 +191,7 @@ class DonationCreate(Schema):
     donor_id: int
     donation_type_id: int
     amount: Decimal = Field(gt=0, max_digits=14, decimal_places=2)
-    currency: str = Field(default="USD", min_length=3, max_length=3)
+    currency: str = Field(default="EGP", min_length=3, max_length=3)
     donation_date: datetime
     payment_method: str | None = Field(default=None, max_length=100)
     receipt_number: str | None = Field(default=None, max_length=100)
@@ -372,3 +374,79 @@ class AuditLogOut(Schema):
     old_value_json: dict | None
     new_value_json: dict | None
     created_at: datetime
+
+
+class WarehouseItemCreate(Schema):
+    name: str = Field(min_length=1, max_length=150)
+    sku: str | None = Field(default=None, max_length=80)
+    quantity: Decimal = Field(default=0, ge=0, max_digits=14, decimal_places=2)
+    unit: str = Field(default="piece", min_length=1, max_length=40)
+    location: str | None = Field(default=None, max_length=150)
+    notes: str | None = None
+    is_active: bool = True
+
+
+class WarehouseItemUpdate(Schema):
+    name: str | None = Field(default=None, min_length=1, max_length=150)
+    sku: str | None = Field(default=None, max_length=80)
+    quantity: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
+    unit: str | None = Field(default=None, min_length=1, max_length=40)
+    location: str | None = Field(default=None, max_length=150)
+    notes: str | None = None
+    is_active: bool | None = None
+
+
+class WarehouseItemOut(Schema):
+    id: int
+    name: str
+    sku: str | None
+    quantity: Decimal
+    unit: str
+    location: str | None
+    notes: str | None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class AidCaseCreate(Schema):
+    case_number: str | None = Field(default=None, max_length=50)
+    beneficiary_name: str = Field(min_length=1, max_length=200)
+    phone: str | None = Field(default=None, max_length=50)
+    category: str = Field(min_length=1, max_length=100)
+    status: CaseStatus = CaseStatus.open
+    priority: CasePriority = CasePriority.medium
+    description: str | None = None
+    requested_amount: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
+    approved_amount: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
+    assigned_user_id: int | None = None
+
+
+class AidCaseUpdate(Schema):
+    case_number: str | None = Field(default=None, max_length=50)
+    beneficiary_name: str | None = Field(default=None, min_length=1, max_length=200)
+    phone: str | None = Field(default=None, max_length=50)
+    category: str | None = Field(default=None, min_length=1, max_length=100)
+    status: CaseStatus | None = None
+    priority: CasePriority | None = None
+    description: str | None = None
+    requested_amount: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
+    approved_amount: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
+    assigned_user_id: int | None = None
+
+
+class AidCaseOut(Schema):
+    id: int
+    case_number: str
+    beneficiary_name: str
+    phone: str | None
+    category: str
+    status: CaseStatus
+    priority: CasePriority
+    description: str | None
+    requested_amount: Decimal | None
+    approved_amount: Decimal | None
+    created_by_user_id: int
+    assigned_user_id: int | None
+    created_at: datetime
+    updated_at: datetime
