@@ -5,6 +5,8 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.models import (
+    ActivityStatus,
+    ActivityTransactionType,
     CasePriority,
     CaseStatus,
     CustodyStatus,
@@ -12,6 +14,8 @@ from app.models import (
     ExpenseStatus,
     ReportFormat,
     ReportType,
+    TransactionDirection,
+    TransactionReferenceType,
 )
 
 
@@ -190,6 +194,7 @@ class DonationTypeOut(Schema):
 class DonationCreate(Schema):
     donor_id: int
     donation_type_id: int
+    activity_id: int | None = None
     amount: Decimal = Field(gt=0, max_digits=14, decimal_places=2)
     currency: str = Field(default="EGP", min_length=3, max_length=3)
     donation_date: datetime
@@ -201,6 +206,7 @@ class DonationCreate(Schema):
 class DonationUpdate(Schema):
     donor_id: int | None = None
     donation_type_id: int | None = None
+    activity_id: int | None = None
     amount: Decimal | None = Field(default=None, gt=0, max_digits=14, decimal_places=2)
     currency: str | None = Field(default=None, min_length=3, max_length=3)
     donation_date: datetime | None = None
@@ -222,10 +228,17 @@ class DonorShort(Schema):
     last_name: str
 
 
+class ActivityShort(Schema):
+    id: int
+    name: str
+    status: ActivityStatus
+
+
 class DonationOut(Schema):
     id: int
     donor_id: int
     donation_type_id: int
+    activity_id: int | None = None
     amount: Decimal
     currency: str
     donation_date: datetime
@@ -237,11 +250,14 @@ class DonationOut(Schema):
     updated_at: datetime
     donor: DonorShort
     donation_type: DonationTypeOut
+    activity: ActivityShort | None = None
     notes: list[DonationNoteOut] = Field(default_factory=list)
 
 
 class CustodyCreate(Schema):
     user_id: int
+    donation_type_id: int
+    activity_id: int | None = None
     amount: Decimal = Field(gt=0, max_digits=14, decimal_places=2)
     assigned_at: datetime | None = None
     description: str | None = None
@@ -275,6 +291,7 @@ class CustodyExpenseOut(Schema):
     id: int
     custody_assignment_id: int
     user_id: int
+    activity_id: int | None = None
     title: str
     description: str | None
     amount: Decimal
@@ -291,6 +308,10 @@ class CustodyOut(Schema):
     user_id: int
     recipient_name: str
     recipient_email: str
+    donation_type_id: int | None = None
+    donation_type_name: str | None = None
+    activity_id: int | None = None
+    activity_name: str | None = None
     amount: Decimal
     assigned_by_user_id: int
     assigned_by_name: str
@@ -450,3 +471,77 @@ class AidCaseOut(Schema):
     assigned_user_id: int | None
     created_at: datetime
     updated_at: datetime
+
+
+class ActivityCreate(Schema):
+    name: str = Field(min_length=1, max_length=200)
+    description: str | None = None
+    activity_type: str = Field(min_length=1, max_length=100)
+    status: ActivityStatus = ActivityStatus.active
+
+
+class ActivityUpdate(Schema):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = None
+    activity_type: str | None = Field(default=None, min_length=1, max_length=100)
+    status: ActivityStatus | None = None
+
+
+class ActivityOut(Schema):
+    id: int
+    name: str
+    description: str | None
+    activity_type: str
+    status: ActivityStatus
+    created_by_user_id: int
+    created_at: datetime
+    updated_at: datetime
+    total_income: Decimal = Decimal("0")
+    total_expense: Decimal = Decimal("0")
+    balance: Decimal = Decimal("0")
+    transaction_count: int = 0
+
+
+class ActivitySummary(Schema):
+    total_income: Decimal
+    total_expense: Decimal
+    balance: Decimal
+    donations: Decimal = Decimal("0")
+    sales: Decimal = Decimal("0")
+    grants: Decimal = Decimal("0")
+    expenses: Decimal = Decimal("0")
+
+
+class ActivityTransactionCreate(Schema):
+    transaction_type: ActivityTransactionType
+    amount: Decimal | None = Field(default=None, gt=0, max_digits=14, decimal_places=2)
+    description: str | None = None
+    reference_type: TransactionReferenceType | None = None
+    reference_id: int | None = None
+    transaction_date: datetime | None = None
+
+    @model_validator(mode="after")
+    def validate_create(self) -> "ActivityTransactionCreate":
+        if self.transaction_type == ActivityTransactionType.donation:
+            if not self.reference_id:
+                raise ValueError("reference_id (donation id) is required for donation transactions")
+            return self
+        if self.amount is None:
+            raise ValueError("amount is required for non-donation transactions")
+        return self
+
+
+class ActivityTransactionOut(Schema):
+    id: int
+    activity_id: int
+    transaction_direction: TransactionDirection
+    transaction_type: ActivityTransactionType
+    amount: Decimal
+    description: str | None
+    reference_type: TransactionReferenceType | None
+    reference_id: int | None
+    transaction_date: datetime
+    created_by_user_id: int
+    created_at: datetime
+    updated_at: datetime
+    running_balance: Decimal | None = None

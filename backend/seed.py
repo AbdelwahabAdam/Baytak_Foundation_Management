@@ -1,9 +1,17 @@
 """Populate a local development database with realistic demonstration data.
 
+Includes funds, donors, donations, activities/ledgers, custody, warehouse, and cases.
+
 Run from Docker Compose:
     docker compose exec backend python seed.py
+
+Force a refresh of demo marker-gated sections (still idempotent for unique keys):
+    docker compose exec backend python seed.py --force
 """
 
+from __future__ import annotations
+
+import argparse
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
@@ -12,7 +20,14 @@ from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
 from app.models import (
+    Activity,
+    ActivityStatus,
+    ActivityTransaction,
+    ActivityTransactionType,
+    AidCase,
     AuditLog,
+    CasePriority,
+    CaseStatus,
     CustodyAssignment,
     CustodyExpense,
     CustodyExpenseApproval,
@@ -23,17 +38,21 @@ from app.models import (
     DonorAddress,
     DonorPhone,
     ExpenseStatus,
-    Role,
-    ScheduledReport,
     ReportFormat,
     ReportType,
+    Role,
+    ScheduledReport,
+    TransactionDirection,
+    TransactionReferenceType,
     User,
+    WarehouseItem,
 )
 from app.security import hash_password
-
+from app.services import ensure_custody_expense_activity_transaction, ensure_donation_activity_transaction
 
 DEMO_PASSWORD = "ChangeMe123!"
 NOW = datetime.now(timezone.utc)
+DEMO_MARKER = "DEMO_DATA_SEEDED_V2"
 
 ROLE_DEFINITIONS = {
     "admin": "Full system administration",
@@ -43,11 +62,11 @@ ROLE_DEFINITIONS = {
 }
 
 USER_DEFINITIONS = [
-    ("admin@charity.local", "System", "Administrator", "admin", "+1 555 0100"),
-    ("finance@charity.local", "Maya", "Hassan", "finance", "+1 555 0101"),
-    ("sami@charity.local", "Sami", "Nouri", "staff", "+1 555 0102"),
-    ("lina@charity.local", "Lina", "Karim", "staff", "+1 555 0103"),
-    ("viewer@charity.local", "Omar", "Jamal", "viewer", "+1 555 0104"),
+    ("admin@charity.local", "System", "Administrator", "admin", "+20 100 000 0100"),
+    ("finance@charity.local", "Maya", "Hassan", "finance", "+20 100 000 0101"),
+    ("sami@charity.local", "Sami", "Nouri", "staff", "+20 100 000 0102"),
+    ("lina@charity.local", "Lina", "Karim", "staff", "+20 100 000 0103"),
+    ("viewer@charity.local", "Omar", "Jamal", "viewer", "+20 100 000 0104"),
 ]
 
 DONATION_TYPE_DEFINITIONS = [
@@ -57,21 +76,66 @@ DONATION_TYPE_DEFINITIONS = [
     ("Education", "School materials, tuition, and student support."),
     ("Medical support", "Treatment, medicine, and urgent medical care."),
     ("Emergency relief", "Rapid assistance during local emergencies."),
+    ("Workshop Donation", "Support for handicrafts and skills programmes."),
 ]
 
 DONOR_DEFINITIONS = [
-    ("Amina", "Rahman", "+1 555 1001", "North District", "United States"),
-    ("Yusuf", "Al-Karim", "+1 555 1002", "Central District", "United States"),
-    ("Noor", "Haddad", "+1 555 1003", "West District", "United States"),
-    ("Fatima", "Saleh", "+1 555 1004", "East District", "United States"),
-    ("Adam", "Ibrahim", "+1 555 1005", "North District", "United States"),
-    ("Layla", "Mansour", "+1 555 1006", "Riverside", "United States"),
-    ("Hassan", "Qasim", "+1 555 1007", "Central District", "United States"),
-    ("Maryam", "Rashid", "+1 555 1008", "West District", "United States"),
-    ("Khalid", "Nasser", "+1 555 1009", "Old Town", "United States"),
-    ("Sara", "Mahmoud", "+1 555 1010", "Riverside", "United States"),
-    ("Ibrahim", "Farouk", "+1 555 1011", "East District", "United States"),
-    ("Huda", "Aziz", "+1 555 1012", "North District", "United States"),
+    ("Amina", "Rahman", "+20 100 555 1001", "Nasr City", "Egypt"),
+    ("Yusuf", "Al-Karim", "+20 100 555 1002", "Heliopolis", "Egypt"),
+    ("Noor", "Haddad", "+20 100 555 1003", "Maadi", "Egypt"),
+    ("Fatima", "Saleh", "+20 100 555 1004", "Dokki", "Egypt"),
+    ("Adam", "Ibrahim", "+20 100 555 1005", "6th of October", "Egypt"),
+    ("Layla", "Mansour", "+20 100 555 1006", "Giza", "Egypt"),
+    ("Hassan", "Qasim", "+20 100 555 1007", "Alexandria", "Egypt"),
+    ("Maryam", "Rashid", "+20 100 555 1008", "Mansoura", "Egypt"),
+    ("Khalid", "Nasser", "+20 100 555 1009", "Tanta", "Egypt"),
+    ("Sara", "Mahmoud", "+20 100 555 1010", "Assiut", "Egypt"),
+    ("Ibrahim", "Farouk", "+20 100 555 1011", "Zagazig", "Egypt"),
+    ("Huda", "Aziz", "+20 100 555 1012", "Suez", "Egypt"),
+]
+
+ACTIVITY_DEFINITIONS = [
+    (
+        "Handicrafts Workshop",
+        "Skills training and product sales for women artisans.",
+        "workshop",
+    ),
+    (
+        "Medical Caravan",
+        "Mobile clinics offering free checkups and medicines.",
+        "medical",
+    ),
+    (
+        "Food Kitchen",
+        "Daily meals for families in need.",
+        "kitchen",
+    ),
+    (
+        "Ramadan Campaign",
+        "Seasonal food packs and iftar support.",
+        "campaign",
+    ),
+    (
+        "Education Program",
+        "School kits, tutoring, and scholarship support.",
+        "education",
+    ),
+]
+
+WAREHOUSE_DEFINITIONS = [
+    ("Rice bags 25kg", "WH-RICE-25", 120, "bag", "Aisle A"),
+    ("Cooking oil 1L", "WH-OIL-1L", 340, "bottle", "Aisle A"),
+    ("School kits", "WH-EDU-KIT", 85, "kit", "Aisle B"),
+    ("First-aid packs", "WH-MED-FA", 60, "pack", "Aisle C"),
+    ("Blankets", "WH-BLKT", 150, "piece", "Aisle D"),
+]
+
+CASE_DEFINITIONS = [
+    ("CASE-SEED-001", "Mona Adel", "+20 101 222 3001", "Medical", CaseStatus.open, CasePriority.high, 8000, 5000),
+    ("CASE-SEED-002", "Karim Fathy", "+20 101 222 3002", "Education", CaseStatus.in_progress, CasePriority.medium, 3500, 3500),
+    ("CASE-SEED-003", "Salma Youssef", "+20 101 222 3003", "Food aid", CaseStatus.open, CasePriority.urgent, 2000, None),
+    ("CASE-SEED-004", "Tarek Nabil", "+20 101 222 3004", "Housing", CaseStatus.closed, CasePriority.low, 12000, 10000),
+    ("CASE-SEED-005", "Nour El-Din", "+20 101 222 3005", "Emergency", CaseStatus.open, CasePriority.high, 4500, None),
 ]
 
 
@@ -104,8 +168,8 @@ def get_or_create_users(db: Session, roles: dict[str, Role]) -> dict[str, User]:
     return users
 
 
-def get_or_create_donation_types(db: Session) -> list[DonationType]:
-    result: list[DonationType] = []
+def get_or_create_donation_types(db: Session) -> dict[str, DonationType]:
+    result: dict[str, DonationType] = {}
     for type_name, description in DONATION_TYPE_DEFINITIONS:
         donation_type = db.scalar(
             select(DonationType).where(DonationType.type_name == type_name)
@@ -115,7 +179,7 @@ def get_or_create_donation_types(db: Session) -> list[DonationType]:
                 type_name=type_name, description=description, is_active=True
             )
             db.add(donation_type)
-        result.append(donation_type)
+        result[type_name] = donation_type
     db.flush()
     return result
 
@@ -152,43 +216,229 @@ def create_donors(db: Session, created_by_user_id: int) -> list[Donor]:
     return donors
 
 
+def get_or_create_activities(db: Session, admin: User) -> dict[str, Activity]:
+    activities: dict[str, Activity] = {}
+    for name, description, activity_type in ACTIVITY_DEFINITIONS:
+        activity = db.scalar(select(Activity).where(Activity.name == name))
+        if not activity:
+            activity = Activity(
+                name=name,
+                description=description,
+                activity_type=activity_type,
+                status=ActivityStatus.active,
+                created_by_user_id=admin.id,
+            )
+            db.add(activity)
+        activities[name] = activity
+    db.flush()
+    return activities
+
+
+def link_existing_donations_to_activities(
+    db: Session,
+    activities: dict[str, Activity],
+    created_by_user_id: int,
+) -> int:
+    """Attach unlinked confirmed donations to activities and post ledger rows."""
+    activity_list = list(activities.values())
+    donations = db.scalars(
+        select(Donation).where(
+            Donation.activity_id.is_(None),
+            Donation.status == DonationStatus.confirmed,
+        )
+    ).all()
+    linked = 0
+    for index, donation in enumerate(donations):
+        activity = activity_list[index % len(activity_list)]
+        donation.activity_id = activity.id
+        ensure_donation_activity_transaction(
+            db, donation=donation, created_by_user_id=created_by_user_id
+        )
+        linked += 1
+    db.flush()
+    return linked
+
+
 def create_donations(
     db: Session,
     donors: list[Donor],
-    donation_types: list[DonationType],
+    donation_types: dict[str, DonationType],
+    activities: dict[str, Activity],
     created_by_user_id: int,
 ) -> int:
+    type_list = list(donation_types.values())
+    activity_cycle = [
+        activities["Handicrafts Workshop"],
+        activities["Medical Caravan"],
+        activities["Food Kitchen"],
+        activities["Ramadan Campaign"],
+        activities["Education Program"],
+        None,
+    ]
+    amounts = [1250, 2500, 750, 5000, 1800, 600, 3500, 900, 2200, 1000, 4250, 1500]
     donations_created = 0
-    amounts = [125, 250, 75, 500, 180, 60, 350, 90, 220, 100, 425, 150]
     for index, donor in enumerate(donors):
         receipt_number = f"SEED-2026-{index + 1:03}"
         if db.scalar(select(Donation.id).where(Donation.receipt_number == receipt_number)):
             continue
-        donation_type = donation_types[index % len(donation_types)]
+        donation_type = type_list[index % len(type_list)]
+        activity = activity_cycle[index % len(activity_cycle)]
         donation = Donation(
             donor_id=donor.id,
             donation_type_id=donation_type.id,
+            activity_id=activity.id if activity else None,
             amount=Decimal(str(amounts[index])),
             currency="EGP",
-            donation_date=NOW - timedelta(days=index * 4 + 2),
+            donation_date=NOW - timedelta(days=index * 3 + 1),
             payment_method=["Bank transfer", "Cash", "Card"][index % 3],
             receipt_number=receipt_number,
             status=DonationStatus.cancelled if index == len(donors) - 1 else DonationStatus.confirmed,
             created_by_user_id=created_by_user_id,
         )
         db.add(donation)
+        db.flush()
+        ensure_donation_activity_transaction(
+            db, donation=donation, created_by_user_id=created_by_user_id
+        )
         donations_created += 1
     db.flush()
     return donations_created
 
 
-def create_custody_data(db: Session, users: dict[str, User], admin: User) -> int:
+def create_activity_ledger(
+    db: Session,
+    activities: dict[str, Activity],
+    admin: User,
+    finance: User,
+) -> int:
+    """Add grants, sales, and direct expenses so activity pages look populated."""
+    specs = [
+        (
+            "Handicrafts Workshop",
+            [
+                ("grant", "Partner skills grant", "4500.00", 20),
+                ("sale", "Handmade product sales weekend", "2800.00", 8),
+                ("purchase", "Raw materials purchase", "1600.00", 12),
+                ("marketing", "Workshop flyer printing", "350.00", 10),
+            ],
+        ),
+        (
+            "Medical Caravan",
+            [
+                ("grant", "Health NGO contribution", "12000.00", 18),
+                ("manual_income", "Clinic day cash donations", "900.00", 5),
+                ("purchase", "Medicines restock", "5400.00", 7),
+                ("transportation", "Caravan fuel and drivers", "1800.00", 6),
+                ("salary", "Volunteer doctor stipends", "3200.00", 4),
+            ],
+        ),
+        (
+            "Food Kitchen",
+            [
+                ("grant", "Food bank monthly grant", "8000.00", 15),
+                ("manual_income", "Community meal sponsorships", "2100.00", 3),
+                ("purchase", "Kitchen groceries", "4700.00", 2),
+                ("utilities", "Gas and electricity", "650.00", 1),
+                ("maintenance", "Kitchen equipment repair", "420.00", 9),
+            ],
+        ),
+        (
+            "Ramadan Campaign",
+            [
+                ("grant", "Corporate Ramadan sponsorship", "15000.00", 25),
+                ("manual_income", "Iftar table sponsorships", "3600.00", 14),
+                ("purchase", "Food pack assembly", "9200.00", 11),
+                ("other", "Distribution volunteers meals", "780.00", 10),
+            ],
+        ),
+        (
+            "Education Program",
+            [
+                ("grant", "Back-to-school foundation grant", "7000.00", 22),
+                ("sale", "Charity bazaar book sale", "1100.00", 16),
+                ("purchase", "School kits bulk order", "4300.00", 13),
+                ("salary", "Tutor honoraria", "2500.00", 8),
+            ],
+        ),
+    ]
+    created = 0
+    for activity_name, rows in specs:
+        activity = activities[activity_name]
+        for tx_type, description, amount, days_ago in rows:
+            exists = db.scalar(
+                select(ActivityTransaction.id).where(
+                    ActivityTransaction.activity_id == activity.id,
+                    ActivityTransaction.description == description,
+                )
+            )
+            if exists:
+                continue
+            transaction_type = ActivityTransactionType(tx_type)
+            direction = (
+                TransactionDirection.income
+                if transaction_type
+                in {
+                    ActivityTransactionType.grant,
+                    ActivityTransactionType.sale,
+                    ActivityTransactionType.manual_income,
+                    ActivityTransactionType.donation,
+                }
+                else TransactionDirection.expense
+            )
+            reference_type = {
+                ActivityTransactionType.grant: TransactionReferenceType.grant,
+                ActivityTransactionType.sale: TransactionReferenceType.sale,
+            }.get(transaction_type, TransactionReferenceType.manual)
+            db.add(
+                ActivityTransaction(
+                    activity_id=activity.id,
+                    transaction_direction=direction,
+                    transaction_type=transaction_type,
+                    amount=Decimal(amount),
+                    description=description,
+                    reference_type=reference_type,
+                    transaction_date=NOW - timedelta(days=days_ago),
+                    created_by_user_id=finance.id if direction == TransactionDirection.income else admin.id,
+                )
+            )
+            created += 1
+    db.flush()
+    return created
+
+
+def create_custody_data(
+    db: Session,
+    users: dict[str, User],
+    donation_types: dict[str, DonationType],
+    activities: dict[str, Activity],
+    admin: User,
+) -> int:
     custody_specs = [
-        (users["sami@charity.local"], Decimal("900.00"), "Food aid distribution"),
-        (users["lina@charity.local"], Decimal("650.00"), "Education supplies programme"),
+        (
+            users["sami@charity.local"],
+            donation_types["Food aid"],
+            activities["Food Kitchen"],
+            Decimal("9000.00"),
+            "Food kitchen field float",
+        ),
+        (
+            users["lina@charity.local"],
+            donation_types["Education"],
+            activities["Education Program"],
+            Decimal("6500.00"),
+            "Education supplies programme",
+        ),
+        (
+            users["sami@charity.local"],
+            donation_types["Medical support"],
+            activities["Medical Caravan"],
+            Decimal("12000.00"),
+            "Medical caravan custody",
+        ),
     ]
     assignments_created = 0
-    for user, amount, description in custody_specs:
+    finance = users["finance@charity.local"]
+    for user, fund, activity, amount, description in custody_specs:
         assignment = db.scalar(
             select(CustodyAssignment).where(
                 CustodyAssignment.user_id == user.id,
@@ -199,9 +449,11 @@ def create_custody_data(db: Session, users: dict[str, User], admin: User) -> int
             continue
         assignment = CustodyAssignment(
             user_id=user.id,
+            donation_type_id=fund.id,
+            activity_id=activity.id,
             amount=amount,
             assigned_by_user_id=admin.id,
-            assigned_at=NOW - timedelta(days=10 if user.email.startswith("sami") else 6),
+            assigned_at=NOW - timedelta(days=10 if "Food" in description else 6),
             description=description,
         )
         db.add(assignment)
@@ -211,27 +463,30 @@ def create_custody_data(db: Session, users: dict[str, User], admin: User) -> int
         approved_expense = CustodyExpense(
             custody_assignment_id=assignment.id,
             user_id=user.id,
+            activity_id=activity.id,
             title="Programme supplies",
             description="Seeded demonstration expense approved by finance.",
-            amount=Decimal("185.50"),
+            amount=Decimal("1850.50"),
             expense_date=NOW - timedelta(days=4),
             status=ExpenseStatus.approved,
         )
         pending_expense = CustodyExpense(
             custody_assignment_id=assignment.id,
             user_id=user.id,
+            activity_id=activity.id,
             title="Transport reimbursement",
             description="Seeded demonstration expense awaiting review.",
-            amount=Decimal("72.00"),
+            amount=Decimal("720.00"),
             expense_date=NOW - timedelta(days=1),
             status=ExpenseStatus.pending,
         )
         rejected_expense = CustodyExpense(
             custody_assignment_id=assignment.id,
             user_id=user.id,
+            activity_id=activity.id,
             title="Unapproved purchase",
             description="Seeded demonstration expense rejected by finance.",
-            amount=Decimal("48.00"),
+            amount=Decimal("480.00"),
             expense_date=NOW - timedelta(days=2),
             status=ExpenseStatus.rejected,
         )
@@ -241,19 +496,79 @@ def create_custody_data(db: Session, users: dict[str, User], admin: User) -> int
             [
                 CustodyExpenseApproval(
                     custody_expense_id=approved_expense.id,
-                    approved_by_user_id=users["finance@charity.local"].id,
+                    approved_by_user_id=finance.id,
                     decision=ExpenseStatus.approved,
                     comment="Receipts verified.",
                 ),
                 CustodyExpenseApproval(
                     custody_expense_id=rejected_expense.id,
-                    approved_by_user_id=users["finance@charity.local"].id,
+                    approved_by_user_id=finance.id,
                     decision=ExpenseStatus.rejected,
                     comment="Outside the assigned programme scope.",
                 ),
             ]
         )
+        ensure_custody_expense_activity_transaction(
+            db, expense=approved_expense, created_by_user_id=finance.id
+        )
     return assignments_created
+
+
+def create_warehouse(db: Session) -> int:
+    created = 0
+    for name, sku, qty, unit, location in WAREHOUSE_DEFINITIONS:
+        item = db.scalar(select(WarehouseItem).where(WarehouseItem.sku == sku))
+        if item:
+            continue
+        db.add(
+            WarehouseItem(
+                name=name,
+                sku=sku,
+                quantity=Decimal(str(qty)),
+                unit=unit,
+                location=location,
+                notes="Seeded inventory for local demos.",
+                is_active=True,
+            )
+        )
+        created += 1
+    db.flush()
+    return created
+
+
+def create_cases(db: Session, admin: User, staff: User) -> int:
+    created = 0
+    for (
+        case_number,
+        beneficiary,
+        phone,
+        category,
+        status,
+        priority,
+        requested,
+        approved,
+    ) in CASE_DEFINITIONS:
+        existing = db.scalar(select(AidCase).where(AidCase.case_number == case_number))
+        if existing:
+            continue
+        db.add(
+            AidCase(
+                case_number=case_number,
+                beneficiary_name=beneficiary,
+                phone=phone,
+                category=category,
+                status=status,
+                priority=priority,
+                description=f"Seeded {category.lower()} support case for {beneficiary}.",
+                requested_amount=Decimal(str(requested)),
+                approved_amount=Decimal(str(approved)) if approved is not None else None,
+                created_by_user_id=admin.id,
+                assigned_user_id=staff.id,
+            )
+        )
+        created += 1
+    db.flush()
+    return created
 
 
 def create_scheduled_report(db: Session, admin: User) -> None:
@@ -275,43 +590,71 @@ def create_scheduled_report(db: Session, admin: User) -> None:
         )
 
 
-def seed() -> None:
+def seed(*, force: bool = False) -> None:
     with SessionLocal() as db:
-        if db.scalar(
-            select(AuditLog.id).where(AuditLog.action == "DEMO_DATA_SEEDED")
-        ):
-            print("Demo data already exists; nothing added.")
-            return
+        already = db.scalar(select(AuditLog.id).where(AuditLog.action == DEMO_MARKER))
+        if already and not force:
+            print("Demo marker already present; filling any missing idempotent records…")
 
         roles = get_or_create_roles(db)
         users = get_or_create_users(db, roles)
         admin = users["admin@charity.local"]
+        finance = users["finance@charity.local"]
+        staff = users["sami@charity.local"]
         donation_types = get_or_create_donation_types(db)
         donors = create_donors(db, admin.id)
-        donations_created = create_donations(db, donors, donation_types, admin.id)
-        custody_created = create_custody_data(db, users, admin)
+        activities = get_or_create_activities(db, admin)
+        donations_created = create_donations(db, donors, donation_types, activities, admin.id)
+        donations_linked = link_existing_donations_to_activities(db, activities, admin.id)
+        ledger_created = create_activity_ledger(db, activities, admin, finance)
+        custody_created = create_custody_data(db, users, donation_types, activities, admin)
+        warehouse_created = create_warehouse(db)
+        cases_created = create_cases(db, admin, staff)
         create_scheduled_report(db, admin)
-        db.add(
-            AuditLog(
-                actor_user_id=admin.id,
-                action="DEMO_DATA_SEEDED",
-                entity_type="system",
-                entity_id="local-development",
-                new_value_json={
-                    "users": len(users),
-                    "donors": len(donors),
-                    "donations_created": donations_created,
-                    "custody_assignments_created": custody_created,
-                },
+
+        if not already:
+            db.add(
+                AuditLog(
+                    actor_user_id=admin.id,
+                    action=DEMO_MARKER,
+                    entity_type="system",
+                    entity_id="local-development",
+                    new_value_json={
+                        "users": len(users),
+                        "donors": len(donors),
+                        "activities": len(activities),
+                        "donations_created": donations_created,
+                        "activity_transactions_created": ledger_created,
+                        "custody_assignments_created": custody_created,
+                        "warehouse_created": warehouse_created,
+                        "cases_created": cases_created,
+                    },
+                )
             )
-        )
         db.commit()
         print(
-            f"Seeded {len(users)} users, {len(donors)} donors, "
-            f"{donations_created} donations, and {custody_created} custody assignments."
+            "Seeded demo data:\n"
+            f"  users={len(users)}\n"
+            f"  donors={len(donors)}\n"
+            f"  funds={len(donation_types)}\n"
+            f"  activities={len(activities)}\n"
+            f"  donations_added={donations_created}\n"
+            f"  donations_linked_to_activities={donations_linked}\n"
+            f"  activity_transactions_added={ledger_created}\n"
+            f"  custody_assignments_added={custody_created}\n"
+            f"  warehouse_items_added={warehouse_created}\n"
+            f"  cases_added={cases_created}"
         )
-        print(f"All seeded users use the password: {DEMO_PASSWORD}")
+        print(f"Login password for all seeded users: {DEMO_PASSWORD}")
+        print("Accounts: admin@charity.local, finance@charity.local, sami@charity.local, lina@charity.local, viewer@charity.local")
 
 
 if __name__ == "__main__":
-    seed()
+    parser = argparse.ArgumentParser(description="Seed Baytak demo data")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Continue even if the V2 demo marker already exists (still idempotent).",
+    )
+    args = parser.parse_args()
+    seed(force=args.force)

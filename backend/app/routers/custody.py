@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from decimal import Decimal
 
@@ -7,10 +8,12 @@ from sqlalchemy.orm import selectinload
 
 from app.dependencies import AdminUser, CurrentUser, DbSession, FinanceOrAdminUser
 from app.models import (
+    Activity,
     CustodyAssignment,
     CustodyExpense,
     CustodyExpenseApproval,
     CustodyStatus,
+    DonationType,
     ExpenseStatus,
     User,
 )
@@ -23,7 +26,15 @@ from app.schemas import (
     CustodyUpdate,
     ExpenseCreate,
 )
-from app.services import add_audit_log, custody_balance, custody_summary
+from app.services import (
+    add_audit_log,
+    custody_balance,
+    custody_summary,
+    ensure_custody_expense_activity_transaction,
+    remove_custody_expense_activity_transaction,
+)
+
+logger = logging.getLogger("baytak.custody")
 
 router = APIRouter(prefix="/custody", tags=["Custody"])
 profile_router = APIRouter(prefix="/profile", tags=["Profile"])
@@ -34,6 +45,8 @@ def custody_query(db: DbSession):
     return db.query(CustodyAssignment).options(
         selectinload(CustodyAssignment.user),
         selectinload(CustodyAssignment.assigned_by),
+        selectinload(CustodyAssignment.donation_type),
+        selectinload(CustodyAssignment.activity),
         selectinload(CustodyAssignment.expenses).selectinload(CustodyExpense.approvals),
     )
 
@@ -57,6 +70,10 @@ def serialize_custody(db: DbSession, assignment: CustodyAssignment) -> dict:
         "user_id": assignment.user_id,
         "recipient_name": assignment.user.full_name,
         "recipient_email": assignment.user.email,
+        "donation_type_id": assignment.donation_type_id,
+        "donation_type_name": assignment.donation_type.type_name if assignment.donation_type else None,
+        "activity_id": assignment.activity_id,
+        "activity_name": assignment.activity.name if assignment.activity else None,
         "amount": assignment.amount,
         "assigned_by_user_id": assignment.assigned_by_user_id,
         "assigned_by_name": assignment.assigned_by.full_name,
@@ -75,6 +92,8 @@ def list_custody(
     _: FinanceOrAdminUser,
     db: DbSession,
     user_id: int | None = Query(default=None),
+    donation_type_id: int | None = Query(default=None),
+    activity_id: int | None = Query(default=None),
     start_date: datetime | None = Query(default=None),
     end_date: datetime | None = Query(default=None),
     amount_min: float | None = Query(default=None, ge=0),
@@ -85,6 +104,10 @@ def list_custody(
     query = custody_query(db)
     if user_id:
         query = query.filter(CustodyAssignment.user_id == user_id)
+    if donation_type_id:
+        query = query.filter(CustodyAssignment.donation_type_id == donation_type_id)
+    if activity_id:
+        query = query.filter(CustodyAssignment.activity_id == activity_id)
     if start_date:
         query = query.filter(CustodyAssignment.assigned_at >= start_date)
     if end_date:
@@ -115,6 +138,18 @@ def create_custody(
     recipient = db.query(User).filter(User.id == payload.user_id, User.is_active.is_(True)).first()
     if not recipient:
         raise HTTPException(status_code=400, detail="Selected active user does not exist")
+    donation_type = (
+        db.query(DonationType)
+        .filter(DonationType.id == payload.donation_type_id, DonationType.is_active.is_(True))
+        .first()
+    )
+    if not donation_type:
+        raise HTTPException(status_code=400, detail="Selected fund (donation type) is not active")
+    if payload.activity_id is not None:
+        activity = db.query(Activity).filter(Activity.id == payload.activity_id).first()
+        if not activity:
+            raise HTTPException(status_code=400, detail="Selected activity was not found")
+    # Custody assignment is NOT an expense and must never check fund balance.
     assignment = CustodyAssignment(
         **payload.model_dump(exclude={"assigned_at"}),
         assigned_at=payload.assigned_at or datetime.now().astimezone(),
@@ -128,9 +163,21 @@ def create_custody(
         action="CUSTODY_ASSIGNED",
         entity_type="custody_assignment",
         entity_id=assignment.id,
-        new_value={"user_id": assignment.user_id, "amount": str(assignment.amount)},
+        new_value={
+            "user_id": assignment.user_id,
+            "amount": str(assignment.amount),
+            "donation_type_id": assignment.donation_type_id,
+            "activity_id": assignment.activity_id,
+        },
     )
     db.commit()
+    logger.info(
+        "custody_assigned id=%s fund=%s activity=%s amount=%s",
+        assignment.id,
+        assignment.donation_type_id,
+        assignment.activity_id,
+        assignment.amount,
+    )
     return serialize_custody(db, get_custody_or_404(db, assignment.id))
 
 
@@ -195,11 +242,13 @@ def submit_expense(
             CustodyExpense.status.in_([ExpenseStatus.pending, ExpenseStatus.approved]),
         )
     )
+    # Float check against custody assignment amount only — never against fund balance.
     if Decimal(reserved_total or 0) + payload.amount > Decimal(assignment.amount):
         raise HTTPException(status_code=400, detail="Expense exceeds the remaining custody amount")
     expense = CustodyExpense(
         custody_assignment_id=assignment.id,
         user_id=current_user.id,
+        activity_id=assignment.activity_id,
         **payload.model_dump(),
     )
     db.add(expense)
@@ -210,7 +259,12 @@ def submit_expense(
         action="CUSTODY_EXPENSE_SUBMITTED",
         entity_type="custody_expense",
         entity_id=expense.id,
-        new_value={"amount": str(expense.amount), "assignment_id": assignment.id},
+        new_value={
+            "amount": str(expense.amount),
+            "assignment_id": assignment.id,
+            "donation_type_id": assignment.donation_type_id,
+            "activity_id": expense.activity_id,
+        },
     )
     db.commit()
     return (
@@ -311,9 +365,12 @@ def decide_expense(
         .where(CustodyAssignment.id == expense.custody_assignment_id)
         .with_for_update()
     )
+    # Custody float check only — never reject because fund balance is negative.
     if decision == ExpenseStatus.approved and custody_balance(db, assignment.id) < expense.amount:
         raise HTTPException(status_code=400, detail="Approval would exceed available custody")
     expense.status = decision
+    if not expense.activity_id:
+        expense.activity_id = assignment.activity_id
     db.add(
         CustodyExpenseApproval(
             custody_expense_id=expense.id,
@@ -322,15 +379,35 @@ def decide_expense(
             comment=payload.comment,
         )
     )
+    if decision == ExpenseStatus.approved:
+        expense.custody_assignment = assignment
+        ensure_custody_expense_activity_transaction(
+            db, expense=expense, created_by_user_id=approver.id
+        )
+    else:
+        remove_custody_expense_activity_transaction(db, expense.id)
     add_audit_log(
         db,
         actor_user_id=approver.id,
         action=f"CUSTODY_EXPENSE_{decision.value.upper()}",
         entity_type="custody_expense",
         entity_id=expense.id,
-        new_value={"decision": decision.value, "comment": payload.comment},
+        new_value={
+            "decision": decision.value,
+            "comment": payload.comment,
+            "donation_type_id": assignment.donation_type_id,
+            "activity_id": expense.activity_id,
+        },
     )
     db.commit()
+    logger.info(
+        "custody_expense_%s id=%s fund=%s activity=%s amount=%s",
+        decision.value,
+        expense.id,
+        assignment.donation_type_id,
+        expense.activity_id,
+        expense.amount,
+    )
     return (
         db.query(CustodyExpense)
         .options(selectinload(CustodyExpense.approvals))

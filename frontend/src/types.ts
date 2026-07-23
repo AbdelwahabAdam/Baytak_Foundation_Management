@@ -59,6 +59,7 @@ export interface Donation {
   id: number
   donor_id: number
   donation_type_id: number
+  activity_id?: number | null
   amount: number
   currency: string
   donation_date: string
@@ -70,12 +71,14 @@ export interface Donation {
   updated_at: string
   donor: Pick<Donor, 'id' | 'first_name' | 'last_name'>
   donation_type: DonationType
+  activity?: { id: number; name: string; status: 'active' | 'inactive' } | null
 }
 
 export interface CustodyExpense {
   id: number
   custody_assignment_id: number
   user_id: number
+  activity_id?: number | null
   title: string
   description?: string | null
   amount: number
@@ -90,6 +93,10 @@ export interface CustodyAssignment {
   user_id: number
   recipient_name: string
   recipient_email: string
+  donation_type_id?: number | null
+  donation_type_name?: string | null
+  activity_id?: number | null
+  activity_name?: string | null
   amount: number
   assigned_by_user_id: number
   assigned_by_name: string
@@ -114,6 +121,60 @@ export interface DashboardSummary {
   total_custody: number
   custody_balance: number
   pending_custody_expenses: number
+  activities_count?: number
+  activity_total_income?: number
+  activity_total_expense?: number
+}
+
+export interface ActivitiesDashboardSummary {
+  activities_count: number
+  total_income: number
+  total_expense: number
+  balance: number
+  top_activities: Array<{ id: number; name: string; income: number; expense: number; balance: number }>
+  income_by_activity: Array<{ id: number; name: string; amount: number }>
+  expense_by_activity: Array<{ id: number; name: string; amount: number }>
+}
+
+export interface Activity {
+  id: number
+  name: string
+  description?: string | null
+  activity_type: string
+  status: 'active' | 'inactive'
+  created_by_user_id: number
+  created_at: string
+  updated_at: string
+  total_income: number
+  total_expense: number
+  balance: number
+  transaction_count: number
+}
+
+export interface ActivitySummary {
+  total_income: number
+  total_expense: number
+  balance: number
+  donations: number
+  sales: number
+  grants: number
+  expenses: number
+}
+
+export interface ActivityTransaction {
+  id: number
+  activity_id: number
+  transaction_direction: 'income' | 'expense'
+  transaction_type: string
+  amount: number
+  description?: string | null
+  reference_type?: string | null
+  reference_id?: number | null
+  transaction_date: string
+  created_by_user_id: number
+  created_at: string
+  updated_at: string
+  running_balance?: number | null
 }
 
 export interface ScheduledReport {

@@ -9,6 +9,7 @@ import {
   FileSpreadsheet,
   HandCoins,
   Landmark,
+  FolderKanban,
   Pencil,
   Search,
   ShieldCheck,
@@ -28,6 +29,8 @@ import { brand } from './branding'
 import { EmptyState, PageHeader } from './components/AppShell'
 import { LanguageSwitcher } from './localization'
 import type {
+  ActivitiesDashboardSummary,
+  Activity,
   AidCase,
   CustodyAssignment,
   CustodyExpense,
@@ -113,6 +116,7 @@ export function DashboardPage() {
   const summary = useQuery({ queryKey: ['dashboard-summary', period], queryFn: () => api<DashboardSummary>(`/dashboard/summary?period=${period}`) })
   const byType = useQuery({ queryKey: ['donations-by-type', period], queryFn: () => api<Array<{ id: number; type_name: string; amount: number; count: number }>>(`/dashboard/donations-by-type?period=${period}`) })
   const recent = useQuery({ queryKey: ['recent-donors', period], queryFn: () => api<Array<{ id: number; name: string; last_donation_at: string; total_amount: number }>>(`/dashboard/recent-donors?period=${period}`) })
+  const activitiesSummary = useQuery({ queryKey: ['dashboard-activities'], queryFn: () => api<ActivitiesDashboardSummary>('/dashboard/activities-summary') })
   if (summary.isLoading) return <PageLoading />
   if (summary.error) return <><PageHeader title="Overview" description="Your charity’s activity at a glance." /><ErrorNotice error={summary.error} /></>
   const stats = [
@@ -121,13 +125,24 @@ export function DashboardPage() {
     ['Custody available', money(summary.data?.custody_balance), Landmark, 'after approved expenses'],
     ['Pending approvals', String(summary.data?.pending_custody_expenses ?? 0), Clock3, 'awaiting a decision'],
   ]
+  const activityStats = [
+    ['Activities', String(activitiesSummary.data?.activities_count ?? 0), FolderKanban, 'financial projects'],
+    ['Activity income', money(activitiesSummary.data?.total_income), HandCoins, 'all ledgers'],
+    ['Activity expense', money(activitiesSummary.data?.total_expense), Landmark, 'all ledgers'],
+    ['Activity balance', money(activitiesSummary.data?.balance), FolderKanban, 'income − expense'],
+  ]
   return (
     <>
       <PageHeader eyebrow="Operations overview" title="Good morning." description="Here is what is happening across your charity." action={<div className="period-toggle">{['day', 'week', 'month'].map((item) => <button key={item} className={period === item ? 'selected' : ''} onClick={() => setPeriod(item)}>{item}</button>)}</div>} />
       <section className="stats-grid">{stats.map(([label, value, Icon, hint]) => { const StatIcon = Icon as typeof HandCoins; return <article className="stat-card" key={label as string}><div className="stat-icon"><StatIcon size={20} /></div><p>{label as string}</p><strong>{value as string}</strong><small>{hint as string}</small></article> })}</section>
+      <section className="stats-grid">{activityStats.map(([label, value, Icon, hint]) => { const StatIcon = Icon as typeof HandCoins; return <article className="stat-card" key={label as string}><div className="stat-icon"><StatIcon size={20} /></div><p>{label as string}</p><strong>{value as string}</strong><small>{hint as string}</small></article> })}</section>
       <section className="dashboard-grid">
         <article className="panel chart-panel"><div className="panel-heading"><div><h2>Giving by fund</h2><p>Confirmed donations for the selected period.</p></div></div>{byType.isLoading ? <PageLoading /> : (byType.data?.length ? <ResponsiveContainer width="100%" height={300}><PieChart><Pie data={byType.data} dataKey="amount" nameKey="type_name" innerRadius={72} outerRadius={108} paddingAngle={4}>{byType.data.map((entry, index) => <Cell key={entry.id} fill={chartColors[index % chartColors.length]} />)}</Pie><Tooltip formatter={(value) => money(value as number)} /></PieChart></ResponsiveContainer> : <EmptyState title="No donations yet" message="Donation totals will appear here." />)}<div className="chart-legend">{byType.data?.map((item, index) => <span key={item.id}><i style={{ background: chartColors[index % chartColors.length] }} />{item.type_name} <strong>{money(item.amount)}</strong></span>)}</div></article>
         <article className="panel recent-panel"><div className="panel-heading"><div><h2>Recently active donors</h2><p>People who gave most recently.</p></div></div>{recent.isLoading ? <PageLoading /> : recent.data?.length ? <div className="activity-list">{recent.data.map((donor) => <div className="activity-item" key={donor.id}><span className="avatar avatar-teal">{donor.name.split(' ').map((word) => word[0]).join('').slice(0, 2)}</span><div><strong>{donor.name}</strong><small>{date(donor.last_donation_at)}</small></div><b>{money(donor.total_amount)}</b></div>)}</div> : <EmptyState title="No activity yet" message="New donors will appear here." />}</article>
+      </section>
+      <section className="dashboard-grid">
+        <article className="panel chart-panel"><div className="panel-heading"><div><h2>Income by activity</h2><p>Top projects by ledger income.</p></div></div>{activitiesSummary.data?.income_by_activity?.length ? <ResponsiveContainer width="100%" height={270}><BarChart data={activitiesSummary.data.income_by_activity}><XAxis dataKey="name" tickLine={false} axisLine={false} /><YAxis tickLine={false} axisLine={false} /><Tooltip formatter={(value) => money(value as number)} /><Bar dataKey="amount" radius={[6, 6, 0, 0]} fill="#0f766e" /></BarChart></ResponsiveContainer> : <EmptyState title="No activity income" message="Link donations or add income to activities." />}</article>
+        <article className="panel recent-panel"><div className="panel-heading"><div><h2>Top activities</h2><p>Highest income projects.</p></div></div>{activitiesSummary.data?.top_activities?.length ? <div className="activity-list">{activitiesSummary.data.top_activities.map((item) => <div className="activity-item" key={item.id}><span className="avatar avatar-teal">{item.name.slice(0, 2)}</span><div><strong>{item.name}</strong><small>{money(item.expense)} expenses</small></div><b>{money(item.balance)}</b></div>)}</div> : <EmptyState title="No activities yet" message="Create an activity to see project balances." />}</article>
       </section>
       <article className="panel bar-panel"><div className="panel-heading"><div><h2>Donation distribution</h2><p>See the balance of support across active funds.</p></div></div>{byType.data?.length ? <ResponsiveContainer width="100%" height={270}><BarChart data={byType.data}><XAxis dataKey="type_name" tickLine={false} axisLine={false} /><YAxis tickFormatter={(value) => `${value}`} tickLine={false} axisLine={false} /><Tooltip formatter={(value) => money(value as number)} /><Bar dataKey="amount" radius={[6, 6, 0, 0]} fill="#0f766e" /></BarChart></ResponsiveContainer> : <EmptyState title="No donation data yet" message="Record a donation to start seeing distribution." />}</article>
     </>
@@ -250,10 +265,20 @@ export function DonationsPage() {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [editingDonation, setEditingDonation] = useState<Donation | null>(null)
-  const [filters, setFilters] = useState({ donorId: '', typeId: '', status: '', amountMin: '', amountMax: '', startDate: '', endDate: '' })
+  const [filters, setFilters] = useState({
+    donorId: '',
+    typeId: '',
+    activityId: '',
+    status: '',
+    amountMin: '',
+    amountMax: '',
+    startDate: '',
+    endDate: '',
+  })
   const donationQuery = new URLSearchParams({ page_size: '100' })
   if (filters.donorId) donationQuery.set('donor_id', filters.donorId)
   if (filters.typeId) donationQuery.set('donation_type_id', filters.typeId)
+  if (filters.activityId) donationQuery.set('activity_id', filters.activityId)
   if (filters.status) donationQuery.set('status', filters.status)
   if (filters.amountMin) donationQuery.set('amount_min', filters.amountMin)
   if (filters.amountMax) donationQuery.set('amount_max', filters.amountMax)
@@ -262,13 +287,153 @@ export function DonationsPage() {
   const donations = useQuery({ queryKey: ['donations', filters], queryFn: () => api<PageResponse<Donation>>(`/donations?${donationQuery.toString()}`) })
   const donors = useQuery({ queryKey: ['donors-for-donation'], queryFn: () => api<PageResponse<Donor>>('/donors?page_size=100') })
   const types = useQuery({ queryKey: ['donation-types-all'], queryFn: () => api<DonationType[]>('/donation-types?include_inactive=true') })
-  const saveDonation = useMutation({ mutationFn: ({ donationId, payload }: { donationId?: number; payload: unknown }) => donationId ? api<Donation>(`/donations/${donationId}`, { method: 'PATCH', body: JSON.stringify(payload) }) : api<Donation>('/donations', { method: 'POST', body: JSON.stringify(payload) }), onSuccess: () => { queryClient.invalidateQueries(); setShowForm(false); setEditingDonation(null) } })
-  const cancelDonation = useMutation({ mutationFn: (id: number) => api(`/donations/${id}`, { method: 'DELETE' }), onSuccess: () => queryClient.invalidateQueries() })
+  const activities = useQuery({ queryKey: ['activities-for-donation'], queryFn: () => api<PageResponse<Activity>>('/activities?page_size=100&status=active') })
+  const saveDonation = useMutation({
+    mutationFn: ({ donationId, payload }: { donationId?: number; payload: unknown }) =>
+      donationId
+        ? api<Donation>(`/donations/${donationId}`, { method: 'PATCH', body: JSON.stringify(payload) })
+        : api<Donation>('/donations', { method: 'POST', body: JSON.stringify(payload) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries()
+      setShowForm(false)
+      setEditingDonation(null)
+    },
+  })
+  const cancelDonation = useMutation({
+    mutationFn: (id: number) => api(`/donations/${id}`, { method: 'DELETE' }),
+    onSuccess: () => queryClient.invalidateQueries(),
+  })
   return <>
-    <PageHeader eyebrow="Income records" title="Donations" description="Record contributions accurately and keep every receipt traceable." action={<button className="button button-primary" onClick={() => { setEditingDonation(null); setShowForm(true) }}><CirclePlus size={18} /> Record donation</button>} />
-    <section className="filter-panel donation-filters"><label>Donor<select value={filters.donorId} onChange={(event) => setFilters({ ...filters, donorId: event.target.value })}><option value="">All donors</option>{donors.data?.items.map((donor) => <option key={donor.id} value={donor.id}>{donor.first_name} {donor.last_name}</option>)}</select></label><label>Donation type<select value={filters.typeId} onChange={(event) => setFilters({ ...filters, typeId: event.target.value })}><option value="">All types</option>{types.data?.map((type) => <option key={type.id} value={type.id}>{type.type_name}</option>)}</select></label><label>Status<select value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })}><option value="">All statuses</option><option value="confirmed">Confirmed</option><option value="cancelled">Cancelled</option><option value="refunded">Refunded</option></select></label><label>Minimum amount<input type="number" min="0" step="0.01" value={filters.amountMin} onChange={(event) => setFilters({ ...filters, amountMin: event.target.value })} /></label><label>Maximum amount<input type="number" min="0" step="0.01" value={filters.amountMax} onChange={(event) => setFilters({ ...filters, amountMax: event.target.value })} /></label><label>From<input type="date" value={filters.startDate} onChange={(event) => setFilters({ ...filters, startDate: event.target.value })} /></label><label>To<input type="date" value={filters.endDate} onChange={(event) => setFilters({ ...filters, endDate: event.target.value })} /></label><button className="text-button" type="button" onClick={() => setFilters({ donorId: '', typeId: '', status: '', amountMin: '', amountMax: '', startDate: '', endDate: '' })}>Clear filters</button><span>{donations.data?.total ?? 0} donations</span></section>
-    {donations.isLoading ? <PageLoading /> : donations.error ? <ErrorNotice error={donations.error} /> : donations.data?.items.length ? <div className="table-wrap"><table><thead><tr><th>Date</th><th>Donor</th><th>Fund</th><th>Receipt</th><th>Status</th><th>Amount</th>{hasRole('admin', 'finance') && <th>Actions</th>}</tr></thead><tbody>{donations.data.items.map((item) => <tr key={item.id}><td>{date(item.donation_date)}</td><td><strong>{item.donor.first_name} {item.donor.last_name}</strong></td><td>{item.donation_type.type_name}</td><td>{item.receipt_number || '—'}</td><td><Status value={item.status} /></td><td><strong>{money(item.amount)}</strong></td>{hasRole('admin', 'finance') && <td><div className="inline-actions"><button className="text-button" onClick={() => { setEditingDonation(item); setShowForm(true) }}>Edit</button>{item.status === 'confirmed' && <button className="text-button danger" onClick={() => { if (window.confirm('Cancel this donation? The record will be retained for audit.')) cancelDonation.mutate(item.id) }}>Cancel</button>}</div></td>}</tr>)}</tbody></table></div> : <EmptyState title="No donations found" message="Adjust the filters or record a donation." />}
-    {showForm && <Modal title={editingDonation ? 'Edit donation' : 'Record a donation'} onClose={() => { setShowForm(false); setEditingDonation(null) }}><form className="form-grid" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); saveDonation.mutate({ donationId: editingDonation?.id, payload: { donor_id: Number(form.get('donor_id')), donation_type_id: Number(form.get('donation_type_id')), amount: Number(form.get('amount')), currency: 'EGP', donation_date: new Date(String(form.get('donation_date'))).toISOString(), payment_method: form.get('payment_method') || null, receipt_number: form.get('receipt_number') || null, status: form.get('status') } }) }}><label className="form-span-2">Donor<select name="donor_id" defaultValue={editingDonation?.donor_id ?? ''} required><option value="">Choose a donor</option>{donors.data?.items.map((donor) => <option key={donor.id} value={donor.id}>{donor.first_name} {donor.last_name}</option>)}</select></label><label className="form-span-2">Donation type<select name="donation_type_id" defaultValue={editingDonation?.donation_type_id ?? ''} required><option value="">Choose a fund</option>{types.data?.map((type) => <option key={type.id} value={type.id} disabled={!type.is_active && type.id !== editingDonation?.donation_type_id}>{type.type_name}{type.is_active ? '' : ' (inactive)'}</option>)}</select></label><label>Amount (EGP)<input name="amount" type="number" min="0.01" step="0.01" defaultValue={editingDonation?.amount} required /></label><label>Received at<input name="donation_date" type="datetime-local" defaultValue={editingDonation ? new Date(editingDonation.donation_date).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16)} required /></label><label>Payment method<input name="payment_method" defaultValue={editingDonation?.payment_method ?? ''} placeholder="Cash, transfer…" /></label><label>Record status<select name="status" defaultValue={editingDonation?.status ?? 'confirmed'}><option value="confirmed">Confirmed</option><option value="cancelled">Cancelled</option><option value="refunded">Refunded</option></select></label><label>Receipt number<input name="receipt_number" defaultValue={editingDonation?.receipt_number ?? ''} /></label><ErrorNotice error={saveDonation.error} /><div className="form-actions form-span-2"><button type="button" className="button button-secondary" onClick={() => { setShowForm(false); setEditingDonation(null) }}>Cancel</button><button className="button button-primary" disabled={saveDonation.isPending}>{editingDonation ? 'Save changes' : 'Save donation'}</button></div></form></Modal>}
+    <PageHeader
+      eyebrow="Income records"
+      title="Donations"
+      description="Choose a fund (donation type). Optionally link a project so the amount is posted to that project’s income ledger."
+      action={
+        <button className="button button-primary" onClick={() => { setEditingDonation(null); setShowForm(true) }}>
+          <CirclePlus size={18} /> Record donation
+        </button>
+      }
+    />
+    <section className="filter-panel donation-filters">
+      <label>Donor<select value={filters.donorId} onChange={(event) => setFilters({ ...filters, donorId: event.target.value })}><option value="">All donors</option>{donors.data?.items.map((donor) => <option key={donor.id} value={donor.id}>{donor.first_name} {donor.last_name}</option>)}</select></label>
+      <label>Donation type<select value={filters.typeId} onChange={(event) => setFilters({ ...filters, typeId: event.target.value })}><option value="">All types</option>{types.data?.map((type) => <option key={type.id} value={type.id}>{type.type_name}</option>)}</select></label>
+      <label>Project<select value={filters.activityId} onChange={(event) => setFilters({ ...filters, activityId: event.target.value })}><option value="">All projects</option>{activities.data?.items.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+      <label>Status<select value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })}><option value="">All statuses</option><option value="confirmed">Confirmed</option><option value="cancelled">Cancelled</option><option value="refunded">Refunded</option></select></label>
+      <label>Minimum amount<input type="number" min="0" step="0.01" value={filters.amountMin} onChange={(event) => setFilters({ ...filters, amountMin: event.target.value })} /></label>
+      <label>Maximum amount<input type="number" min="0" step="0.01" value={filters.amountMax} onChange={(event) => setFilters({ ...filters, amountMax: event.target.value })} /></label>
+      <label>From<input type="date" value={filters.startDate} onChange={(event) => setFilters({ ...filters, startDate: event.target.value })} /></label>
+      <label>To<input type="date" value={filters.endDate} onChange={(event) => setFilters({ ...filters, endDate: event.target.value })} /></label>
+      <button className="text-button" type="button" onClick={() => setFilters({ donorId: '', typeId: '', activityId: '', status: '', amountMin: '', amountMax: '', startDate: '', endDate: '' })}>Clear filters</button>
+      <span>{donations.data?.total ?? 0} donations</span>
+    </section>
+    {donations.isLoading ? <PageLoading /> : donations.error ? <ErrorNotice error={donations.error} /> : donations.data?.items.length ? (
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Donor</th>
+              <th>Fund</th>
+              <th>Project</th>
+              <th>Receipt</th>
+              <th>Status</th>
+              <th>Amount</th>
+              {hasRole('admin', 'finance') && <th>Actions</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {donations.data.items.map((item) => (
+              <tr key={item.id}>
+                <td>{date(item.donation_date)}</td>
+                <td><strong>{item.donor.first_name} {item.donor.last_name}</strong></td>
+                <td>{item.donation_type.type_name}</td>
+                <td>{item.activity?.name || '—'}</td>
+                <td>{item.receipt_number || '—'}</td>
+                <td><Status value={item.status} /></td>
+                <td><strong>{money(item.amount)}</strong></td>
+                {hasRole('admin', 'finance') && (
+                  <td>
+                    <div className="inline-actions">
+                      <button className="text-button" onClick={() => { setEditingDonation(item); setShowForm(true) }}>Edit</button>
+                      {item.status === 'confirmed' && (
+                        <button className="text-button danger" onClick={() => { if (window.confirm('Cancel this donation? The record will be retained for audit.')) cancelDonation.mutate(item.id) }}>Cancel</button>
+                      )}
+                    </div>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    ) : <EmptyState title="No donations found" message="Adjust the filters or record a donation." />}
+    {showForm && (
+      <Modal title={editingDonation ? 'Edit donation' : 'Record a donation'} onClose={() => { setShowForm(false); setEditingDonation(null) }}>
+        <form
+          className="form-grid"
+          onSubmit={(event) => {
+            event.preventDefault()
+            const form = new FormData(event.currentTarget)
+            saveDonation.mutate({
+              donationId: editingDonation?.id,
+              payload: {
+                donor_id: Number(form.get('donor_id')),
+                donation_type_id: Number(form.get('donation_type_id')),
+                activity_id: form.get('activity_id') ? Number(form.get('activity_id')) : null,
+                amount: Number(form.get('amount')),
+                currency: 'EGP',
+                donation_date: new Date(String(form.get('donation_date'))).toISOString(),
+                payment_method: form.get('payment_method') || null,
+                receipt_number: form.get('receipt_number') || null,
+                status: form.get('status'),
+              },
+            })
+          }}
+        >
+          <label className="form-span-2">
+            Donor
+            <select name="donor_id" defaultValue={editingDonation?.donor_id ?? ''} required>
+              <option value="">Choose a donor</option>
+              {donors.data?.items.map((donor) => (
+                <option key={donor.id} value={donor.id}>{donor.first_name} {donor.last_name}</option>
+              ))}
+            </select>
+          </label>
+          <label className="form-span-2">
+            Fund (donation type)
+            <select name="donation_type_id" defaultValue={editingDonation?.donation_type_id ?? ''} required>
+              <option value="">Choose a fund</option>
+              {types.data?.map((type) => (
+                <option key={type.id} value={type.id} disabled={!type.is_active && type.id !== editingDonation?.donation_type_id}>
+                  {type.type_name}{type.is_active ? '' : ' (inactive)'}
+                </option>
+              ))}
+            </select>
+            <small>Required. This is the fund source (e.g. Zakat, Sadaqah).</small>
+          </label>
+          <label className="form-span-2">
+            Project (optional)
+            <select name="activity_id" defaultValue={editingDonation?.activity_id ?? ''}>
+              <option value="">No project — fund only</option>
+              {activities.data?.items.map((item) => (
+                <option key={item.id} value={item.id}>{item.name}</option>
+              ))}
+            </select>
+            <small>If selected (e.g. Education Program), the donation is also posted to that project’s Income (الدخل).</small>
+          </label>
+          <label>Amount (EGP)<input name="amount" type="number" min="0.01" step="0.01" defaultValue={editingDonation?.amount} required /></label>
+          <label>Received at<input name="donation_date" type="datetime-local" defaultValue={editingDonation ? new Date(editingDonation.donation_date).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16)} required /></label>
+          <label>Payment method<input name="payment_method" defaultValue={editingDonation?.payment_method ?? ''} placeholder="Cash, transfer…" /></label>
+          <label>Record status<select name="status" defaultValue={editingDonation?.status ?? 'confirmed'}><option value="confirmed">Confirmed</option><option value="cancelled">Cancelled</option><option value="refunded">Refunded</option></select></label>
+          <label>Receipt number<input name="receipt_number" defaultValue={editingDonation?.receipt_number ?? ''} /></label>
+          <ErrorNotice error={saveDonation.error} />
+          <div className="form-actions form-span-2">
+            <button type="button" className="button button-secondary" onClick={() => { setShowForm(false); setEditingDonation(null) }}>Cancel</button>
+            <button className="button button-primary" disabled={saveDonation.isPending}>{editingDonation ? 'Save changes' : 'Save donation'}</button>
+          </div>
+        </form>
+      </Modal>
+    )}
   </>
 }
 
@@ -280,16 +445,18 @@ export function CustodyPage() {
   const [editingCustody, setEditingCustody] = useState<CustodyAssignment | null>(null)
   const custody = useQuery<PageResponse<CustodyAssignment> | CustodyAssignment[]>({ queryKey: ['custody'], queryFn: () => hasRole('admin', 'finance') ? api<PageResponse<CustodyAssignment>>('/custody?page_size=100') : api<CustodyAssignment[]>('/profile/custody') })
   const users = useQuery({ queryKey: ['active-users'], enabled: hasRole('admin'), queryFn: () => api<User[]>('/users?active_only=true') })
+  const funds = useQuery({ queryKey: ['donation-types-active'], enabled: hasRole('admin'), queryFn: () => api<DonationType[]>('/donation-types') })
+  const activities = useQuery({ queryKey: ['activities-for-custody'], enabled: hasRole('admin'), queryFn: () => api<PageResponse<Activity>>('/activities?page_size=100&status=active') })
   const createAssignment = useMutation({ mutationFn: (payload: unknown) => api<CustodyAssignment>('/custody', { method: 'POST', body: JSON.stringify(payload) }), onSuccess: () => { queryClient.invalidateQueries(); setShowAssignment(false) } })
   const updateCustody = useMutation({ mutationFn: ({ assignmentId, payload }: { assignmentId: number; payload: unknown }) => api<CustodyAssignment>(`/custody/${assignmentId}`, { method: 'PATCH', body: JSON.stringify(payload) }), onSuccess: () => { queryClient.invalidateQueries(); setEditingCustody(null) } })
   const createExpense = useMutation({ mutationFn: ({ assignmentId, payload }: { assignmentId: number; payload: unknown }) => api<CustodyExpense>(`/custody/${assignmentId}/expenses`, { method: 'POST', body: JSON.stringify(payload) }), onSuccess: () => { queryClient.invalidateQueries(); setExpenseAssignmentId(null) } })
   const assignments = useMemo<CustodyAssignment[]>(() => Array.isArray(custody.data) ? custody.data : custody.data?.items ?? [], [custody.data])
   return <>
     <PageHeader eyebrow="Expense funds" title="Custody" description={hasRole('admin', 'finance') ? 'Assign funds, monitor available balance, and review submitted expenses.' : 'View the funds assigned to you and their remaining balance.'} action={hasRole('admin') ? <button className="button button-primary" onClick={() => setShowAssignment(true)}><CirclePlus size={18} /> Assign custody</button> : undefined} />
-    {custody.isLoading ? <PageLoading /> : custody.error ? <ErrorNotice error={custody.error} /> : assignments.length ? <div className="custody-grid">{assignments.map((assignment) => <article className="custody-card" key={assignment.id}><div className="card-top"><span className="type-index">#{assignment.id}</span><Status value={assignment.status} /></div><p>Assigned amount</p><h2>{money(assignment.amount)}</h2><div className="balance-strip"><span>Available</span><strong>{money(assignment.available_balance)}</strong></div><dl><div><dt>Recipient</dt><dd>{assignment.recipient_name}</dd></div><div><dt>Assigned by</dt><dd>{assignment.assigned_by_name}</dd></div><div><dt>Assigned</dt><dd>{date(assignment.assigned_at)}</dd></div><div><dt>Expenses</dt><dd>{assignment.expenses.length}</dd></div></dl>{assignment.expenses.slice(0, 2).map((expense) => <div className="expense-row" key={expense.id}><span>{expense.title}</span><Status value={expense.status} /></div>)}<p className="card-description">{assignment.description || 'No assignment description.'}</p><div className="card-actions">{assignment.user_id === user?.id && assignment.status === 'active' && <button className="button button-secondary button-small" onClick={() => setExpenseAssignmentId(assignment.id)}>Submit expense</button>}{hasRole('admin') && <button className="text-button" onClick={() => setEditingCustody(assignment)}>Edit</button>}</div></article>)}</div> : <EmptyState title="No custody assigned" message={hasRole('admin') ? 'Assign custody to a user when they need funds for expenses.' : 'An assigned fund will appear here.'} />}
-    {showAssignment && <Modal title="Assign custody" onClose={() => setShowAssignment(false)}><form className="form-grid" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); createAssignment.mutate({ user_id: Number(form.get('user_id')), amount: Number(form.get('amount')), assigned_at: new Date(String(form.get('assigned_at'))).toISOString(), description: form.get('description') || null }) }}><label className="form-span-2">Recipient<select name="user_id" required><option value="">Choose a user</option>{users.data?.map((item) => <option key={item.id} value={item.id}>{item.first_name} {item.last_name} · {item.email}</option>)}</select></label><label>Amount<input name="amount" type="number" min="0.01" step="0.01" required /></label><label>Assigned at<input name="assigned_at" type="datetime-local" defaultValue={new Date().toISOString().slice(0, 16)} required /></label><label className="form-span-2">Description<textarea name="description" rows={3} placeholder="Purpose or usage guidance" /></label><ErrorNotice error={createAssignment.error} /><div className="form-actions form-span-2"><button type="button" className="button button-secondary" onClick={() => setShowAssignment(false)}>Cancel</button><button className="button button-primary" disabled={createAssignment.isPending}>Assign custody</button></div></form></Modal>}
-    {editingCustody && <Modal title={`Edit custody #${editingCustody.id}`} onClose={() => setEditingCustody(null)}><form className="form-grid" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); updateCustody.mutate({ assignmentId: editingCustody.id, payload: { description: form.get('description') || null, status: form.get('status') } }) }}><label className="form-span-2">Recipient<input value={`${editingCustody.recipient_name} · ${editingCustody.recipient_email}`} disabled /></label><label className="form-span-2">Status<select name="status" defaultValue={editingCustody.status}><option value="active">Active</option><option value="closed">Closed (only when fully spent)</option><option value="cancelled">Cancelled</option></select></label><label className="form-span-2">Description<textarea name="description" defaultValue={editingCustody.description ?? ''} rows={4} /></label><ErrorNotice error={updateCustody.error} /><div className="form-actions form-span-2"><button type="button" className="button button-secondary" onClick={() => setEditingCustody(null)}>Cancel</button><button className="button button-primary" disabled={updateCustody.isPending}>Save custody</button></div></form></Modal>}
-    {expenseAssignmentId && <Modal title="Submit custody expense" onClose={() => setExpenseAssignmentId(null)}><form className="form-grid" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); createExpense.mutate({ assignmentId: expenseAssignmentId, payload: { title: form.get('title'), description: form.get('description') || null, amount: Number(form.get('amount')), expense_date: new Date(String(form.get('expense_date'))).toISOString() } }) }}><label className="form-span-2">Expense title<input name="title" required autoFocus placeholder="e.g. Food supplies" /></label><label>Amount<input name="amount" type="number" min="0.01" step="0.01" required /></label><label>Expense date<input name="expense_date" type="datetime-local" defaultValue={new Date().toISOString().slice(0, 16)} required /></label><label className="form-span-2">Description<textarea name="description" rows={3} /></label><ErrorNotice error={createExpense.error} /><div className="form-actions form-span-2"><button type="button" className="button button-secondary" onClick={() => setExpenseAssignmentId(null)}>Cancel</button><button className="button button-primary" disabled={createExpense.isPending}>Submit for approval</button></div></form></Modal>}
+    {custody.isLoading ? <PageLoading /> : custody.error ? <ErrorNotice error={custody.error} /> : assignments.length ? <div className="custody-grid">{assignments.map((assignment) => <article className="custody-card" key={assignment.id}><div className="card-top"><span className="type-index">#{assignment.id}</span><Status value={assignment.status} /></div><p>Assigned amount</p><h2>{money(assignment.amount)}</h2><div className="balance-strip"><span>Available</span><strong>{money(assignment.available_balance)}</strong></div><dl><div><dt>Recipient</dt><dd>{assignment.recipient_name}</dd></div><div><dt>Fund</dt><dd>{assignment.donation_type_name || '—'}</dd></div><div><dt>Activity</dt><dd>{assignment.activity_name || '—'}</dd></div><div><dt>Assigned by</dt><dd>{assignment.assigned_by_name}</dd></div><div><dt>Assigned</dt><dd>{date(assignment.assigned_at)}</dd></div><div><dt>Expenses</dt><dd>{assignment.expenses.length}</dd></div></dl>{assignment.expenses.slice(0, 2).map((expense) => <div className="expense-row" key={expense.id}><span>{expense.title}</span><Status value={expense.status} /></div>)}<p className="card-description">{assignment.description || 'No assignment description.'}</p><div className="card-actions">{assignment.user_id === user?.id && assignment.status === 'active' && <button className="button button-secondary button-small" onClick={() => setExpenseAssignmentId(assignment.id)}>Submit expense</button>}{hasRole('admin') && <button className="text-button" onClick={() => setEditingCustody(assignment)}>Edit</button>}</div></article>)}</div> : <EmptyState title="No custody assigned" message={hasRole('admin') ? 'Assign custody to a user when they need funds for expenses.' : 'An assigned fund will appear here.'} />}
+    {showAssignment && <Modal title="Assign custody" onClose={() => setShowAssignment(false)}><form className="form-grid" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); createAssignment.mutate({ user_id: Number(form.get('user_id')), donation_type_id: Number(form.get('donation_type_id')), activity_id: form.get('activity_id') ? Number(form.get('activity_id')) : null, amount: Number(form.get('amount')), assigned_at: new Date(String(form.get('assigned_at'))).toISOString(), description: form.get('description') || null }) }}><label className="form-span-2">Recipient<select name="user_id" required><option value="">Choose a user</option>{users.data?.map((item) => <option key={item.id} value={item.id}>{item.first_name} {item.last_name} · {item.email}</option>)}</select></label><label className="form-span-2">Fund (donation type)<select name="donation_type_id" required><option value="">Choose a fund</option>{funds.data?.map((item) => <option key={item.id} value={item.id}>{item.type_name}</option>)}</select></label><label className="form-span-2">Activity (optional)<select name="activity_id"><option value="">None</option>{activities.data?.items.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Amount<input name="amount" type="number" min="0.01" step="0.01" required /></label><label>Assigned at<input name="assigned_at" type="datetime-local" defaultValue={new Date().toISOString().slice(0, 16)} required /></label><label className="form-span-2">Description<textarea name="description" rows={3} placeholder="Purpose or usage guidance" /></label><ErrorNotice error={createAssignment.error} /><div className="form-actions form-span-2"><button type="button" className="button button-secondary" onClick={() => setShowAssignment(false)}>Cancel</button><button className="button button-primary" disabled={createAssignment.isPending}>Assign custody</button></div></form></Modal>}
+    {editingCustody && <Modal title={`Edit custody #${editingCustody.id}`} onClose={() => setEditingCustody(null)}><form className="form-grid" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); updateCustody.mutate({ assignmentId: editingCustody.id, payload: { description: form.get('description') || null, status: form.get('status') } }) }}><label className="form-span-2">Recipient<input value={`${editingCustody.recipient_name} · ${editingCustody.recipient_email}`} disabled /></label><label className="form-span-2">Fund<input value={editingCustody.donation_type_name || '—'} disabled /><small>Fund is inherited by expenses automatically.</small></label><label className="form-span-2">Status<select name="status" defaultValue={editingCustody.status}><option value="active">Active</option><option value="closed">Closed (only when fully spent)</option><option value="cancelled">Cancelled</option></select></label><label className="form-span-2">Description<textarea name="description" defaultValue={editingCustody.description ?? ''} rows={4} /></label><ErrorNotice error={updateCustody.error} /><div className="form-actions form-span-2"><button type="button" className="button button-secondary" onClick={() => setEditingCustody(null)}>Cancel</button><button className="button button-primary" disabled={updateCustody.isPending}>Save custody</button></div></form></Modal>}
+    {expenseAssignmentId && <Modal title="Submit custody expense" onClose={() => setExpenseAssignmentId(null)}><form className="form-grid" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); createExpense.mutate({ assignmentId: expenseAssignmentId, payload: { title: form.get('title'), description: form.get('description') || null, amount: Number(form.get('amount')), expense_date: new Date(String(form.get('expense_date'))).toISOString() } }) }}><p className="form-span-2">Fund is taken automatically from the custody assignment. You only enter expense details.</p><label className="form-span-2">Expense title<input name="title" required autoFocus placeholder="e.g. Food supplies" /></label><label>Amount<input name="amount" type="number" min="0.01" step="0.01" required /></label><label>Expense date<input name="expense_date" type="datetime-local" defaultValue={new Date().toISOString().slice(0, 16)} required /></label><label className="form-span-2">Description<textarea name="description" rows={3} /></label><ErrorNotice error={createExpense.error} /><div className="form-actions form-span-2"><button type="button" className="button button-secondary" onClick={() => setExpenseAssignmentId(null)}>Cancel</button><button className="button button-primary" disabled={createExpense.isPending}>Submit for approval</button></div></form></Modal>}
   </>
 }
 

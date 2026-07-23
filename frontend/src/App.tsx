@@ -20,6 +20,7 @@ import {
   UsersPage,
   WarehousePage,
 } from './pages'
+import { ActivitiesPage, ActivityDetailPage } from './activities-pages'
 
 function AppLayout() {
   return <AppShell><Outlet /></AppShell>
@@ -53,6 +54,8 @@ function App() {
               <Route path="/donation-types" element={<DonationTypesPage />} />
               <Route path="/warehouse" element={<WarehousePage />} />
               <Route path="/cases" element={<CasesPage />} />
+              <Route path="/activities" element={<ActivitiesPage />} />
+              <Route path="/activities/:activityId" element={<ActivityDetailPage />} />
               <Route path="/custody" element={<CustodyPage />} />
               <Route path="/approvals" element={<ApprovalsPage />} />
               <Route path="/reports" element={<ReportsPage />} />

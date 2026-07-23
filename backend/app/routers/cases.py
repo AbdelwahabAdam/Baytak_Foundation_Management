@@ -53,7 +53,12 @@ def list_cases(
         .limit(page_size)
         .all()
     )
-    return {"items": items, "total": total, "page": page, "page_size": page_size}
+    return {
+        "items": [AidCaseOut.model_validate(item) for item in items],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+    }
 
 
 @router.post("", response_model=AidCaseOut, status_code=status.HTTP_201_CREATED)

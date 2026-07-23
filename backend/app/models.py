@@ -46,6 +46,39 @@ class CasePriority(str, enum.Enum):
     urgent = "urgent"
 
 
+class ActivityStatus(str, enum.Enum):
+    active = "active"
+    inactive = "inactive"
+
+
+class TransactionDirection(str, enum.Enum):
+    income = "income"
+    expense = "expense"
+
+
+class ActivityTransactionType(str, enum.Enum):
+    donation = "donation"
+    sale = "sale"
+    grant = "grant"
+    manual_income = "manual_income"
+    manual_expense = "manual_expense"
+    purchase = "purchase"
+    salary = "salary"
+    maintenance = "maintenance"
+    utilities = "utilities"
+    transportation = "transportation"
+    marketing = "marketing"
+    other = "other"
+
+
+class TransactionReferenceType(str, enum.Enum):
+    donation = "donation"
+    custody_expense = "custody_expense"
+    manual = "manual"
+    sale = "sale"
+    grant = "grant"
+
+
 class CustodyStatus(str, enum.Enum):
     active = "active"
     closed = "closed"
@@ -215,6 +248,9 @@ class DonationType(TimestampMixin, Base):
     description: Mapped[str | None] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     donations: Mapped[list["Donation"]] = relationship(back_populates="donation_type")
+    custody_assignments: Mapped[list["CustodyAssignment"]] = relationship(
+        back_populates="donation_type"
+    )
 
 
 class Donation(TimestampMixin, Base):
@@ -226,6 +262,9 @@ class Donation(TimestampMixin, Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     donor_id: Mapped[int] = mapped_column(ForeignKey("donors.id"), index=True)
     donation_type_id: Mapped[int] = mapped_column(ForeignKey("donation_types.id"), index=True)
+    activity_id: Mapped[int | None] = mapped_column(
+        ForeignKey("activities.id"), index=True, nullable=True
+    )
     amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), index=True)
     currency: Mapped[str] = mapped_column(String(3), default="EGP", server_default="EGP")
     donation_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
@@ -237,6 +276,7 @@ class Donation(TimestampMixin, Base):
     created_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     donor: Mapped[Donor] = relationship(back_populates="donations")
     donation_type: Mapped[DonationType] = relationship(back_populates="donations")
+    activity: Mapped["Activity | None"] = relationship(back_populates="donations")
     created_by: Mapped[User] = relationship(foreign_keys=[created_by_user_id])
     notes: Mapped[list["DonationNote"]] = relationship(
         back_populates="donation", cascade="all, delete-orphan", order_by="DonationNote.created_at.desc()"
@@ -262,6 +302,12 @@ class CustodyAssignment(TimestampMixin, Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    donation_type_id: Mapped[int | None] = mapped_column(
+        ForeignKey("donation_types.id"), index=True, nullable=True
+    )
+    activity_id: Mapped[int | None] = mapped_column(
+        ForeignKey("activities.id"), index=True, nullable=True
+    )
     amount: Mapped[Decimal] = mapped_column(Numeric(14, 2))
     assigned_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     assigned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
@@ -271,6 +317,10 @@ class CustodyAssignment(TimestampMixin, Base):
     )
     user: Mapped[User] = relationship(foreign_keys=[user_id])
     assigned_by: Mapped[User] = relationship(foreign_keys=[assigned_by_user_id])
+    donation_type: Mapped[DonationType | None] = relationship(
+        foreign_keys=[donation_type_id], back_populates="custody_assignments"
+    )
+    activity: Mapped["Activity | None"] = relationship(back_populates="custody_assignments")
     expenses: Mapped[list["CustodyExpense"]] = relationship(
         back_populates="custody_assignment", cascade="all, delete-orphan"
     )
@@ -284,6 +334,9 @@ class CustodyExpense(TimestampMixin, Base):
         ForeignKey("custody_assignments.id"), index=True
     )
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    activity_id: Mapped[int | None] = mapped_column(
+        ForeignKey("activities.id"), index=True, nullable=True
+    )
     title: Mapped[str] = mapped_column(String(255))
     description: Mapped[str | None] = mapped_column(Text)
     amount: Mapped[Decimal] = mapped_column(Numeric(14, 2))
@@ -294,6 +347,7 @@ class CustodyExpense(TimestampMixin, Base):
     submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     custody_assignment: Mapped[CustodyAssignment] = relationship(back_populates="expenses")
     user: Mapped[User] = relationship(foreign_keys=[user_id])
+    activity: Mapped["Activity | None"] = relationship(back_populates="custody_expenses")
     approvals: Mapped[list["CustodyExpenseApproval"]] = relationship(
         back_populates="expense", cascade="all, delete-orphan", order_by="CustodyExpenseApproval.decided_at.desc()"
     )
@@ -399,3 +453,53 @@ class AidCase(TimestampMixin, Base):
     assigned_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), index=True)
     created_by: Mapped[User] = relationship(foreign_keys=[created_by_user_id])
     assigned_user: Mapped[User | None] = relationship(foreign_keys=[assigned_user_id])
+
+
+class Activity(TimestampMixin, Base):
+    __tablename__ = "activities"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(200), unique=True, index=True)
+    description: Mapped[str | None] = mapped_column(Text)
+    activity_type: Mapped[str] = mapped_column(String(100), index=True)
+    status: Mapped[ActivityStatus] = mapped_column(
+        Enum(ActivityStatus, name="activity_status"),
+        default=ActivityStatus.active,
+        index=True,
+    )
+    created_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by: Mapped[User] = relationship(foreign_keys=[created_by_user_id])
+    donations: Mapped[list["Donation"]] = relationship(back_populates="activity")
+    custody_assignments: Mapped[list["CustodyAssignment"]] = relationship(back_populates="activity")
+    custody_expenses: Mapped[list["CustodyExpense"]] = relationship(back_populates="activity")
+    transactions: Mapped[list["ActivityTransaction"]] = relationship(
+        back_populates="activity",
+        cascade="all, delete-orphan",
+        order_by="ActivityTransaction.transaction_date.desc()",
+    )
+
+
+class ActivityTransaction(TimestampMixin, Base):
+    __tablename__ = "activity_transactions"
+    __table_args__ = (
+        Index("ix_activity_transactions_activity_date", "activity_id", "transaction_date"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    activity_id: Mapped[int] = mapped_column(ForeignKey("activities.id"), index=True)
+    transaction_direction: Mapped[TransactionDirection] = mapped_column(
+        Enum(TransactionDirection, name="transaction_direction"), index=True
+    )
+    transaction_type: Mapped[ActivityTransactionType] = mapped_column(
+        Enum(ActivityTransactionType, name="activity_transaction_type"), index=True
+    )
+    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2))
+    description: Mapped[str | None] = mapped_column(Text)
+    reference_type: Mapped[TransactionReferenceType | None] = mapped_column(
+        Enum(TransactionReferenceType, name="transaction_reference_type"), nullable=True
+    )
+    reference_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    transaction_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    created_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    activity: Mapped[Activity] = relationship(back_populates="transactions")
+    created_by: Mapped[User] = relationship(foreign_keys=[created_by_user_id])

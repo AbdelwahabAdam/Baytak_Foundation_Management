@@ -13,6 +13,7 @@ from app.config import get_settings
 from app.db import SessionLocal
 from app.models import Role, User
 from app.routers import (
+    activities,
     audit,
     auth,
     cases,
@@ -105,7 +106,7 @@ settings = get_settings()
 app = FastAPI(
     title=settings.app_name,
     version="0.1.0",
-    description="API for donors, donations, custody accounting, and administration.",
+    description="API for donors, donations, fund accounting activities, custody, and administration.",
     lifespan=lifespan,
 )
 
@@ -157,6 +158,7 @@ app.include_router(users.users_router, prefix=api_prefix)
 app.include_router(donors.router, prefix=api_prefix)
 app.include_router(donation_types.router, prefix=api_prefix)
 app.include_router(donations.router, prefix=api_prefix)
+app.include_router(activities.router, prefix=api_prefix)
 app.include_router(custody.profile_router, prefix=api_prefix)
 app.include_router(custody.router, prefix=api_prefix)
 app.include_router(custody.approvals_router, prefix=api_prefix)

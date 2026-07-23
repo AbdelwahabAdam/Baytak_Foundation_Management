@@ -3,10 +3,20 @@ from decimal import Decimal
 
 from fastapi import APIRouter, Query
 from sqlalchemy import func
-from sqlalchemy.orm import selectinload
 
 from app.dependencies import DbSession, FinanceOrAdminUser
-from app.models import CustodyAssignment, CustodyExpense, Donation, DonationStatus, DonationType, Donor, ExpenseStatus
+from app.models import (
+    Activity,
+    ActivityTransaction,
+    CustodyAssignment,
+    CustodyExpense,
+    Donation,
+    DonationStatus,
+    DonationType,
+    Donor,
+    ExpenseStatus,
+    TransactionDirection,
+)
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
@@ -70,6 +80,19 @@ def summary(
         "total_custody": Decimal(total_custody or 0),
         "custody_balance": Decimal(total_custody or 0) - Decimal(approved_expenses or 0),
         "pending_custody_expenses": pending_expenses or 0,
+        "activities_count": db.query(func.count(Activity.id)).scalar() or 0,
+        "activity_total_income": Decimal(
+            db.query(func.coalesce(func.sum(ActivityTransaction.amount), 0))
+            .filter(ActivityTransaction.transaction_direction == TransactionDirection.income)
+            .scalar()
+            or 0
+        ),
+        "activity_total_expense": Decimal(
+            db.query(func.coalesce(func.sum(ActivityTransaction.amount), 0))
+            .filter(ActivityTransaction.transaction_direction == TransactionDirection.expense)
+            .scalar()
+            or 0
+        ),
     }
 
 
@@ -156,3 +179,83 @@ def custody_summary(
         "pending_expenses": Decimal(pending or 0),
         "available_balance": Decimal(total_assigned or 0) - Decimal(approved or 0),
     }
+
+
+@router.get("/activities-summary", response_model=dict)
+def activities_summary(_: FinanceOrAdminUser, db: DbSession) -> dict:
+    income = Decimal(
+        db.query(func.coalesce(func.sum(ActivityTransaction.amount), 0))
+        .filter(ActivityTransaction.transaction_direction == TransactionDirection.income)
+        .scalar()
+        or 0
+    )
+    expense = Decimal(
+        db.query(func.coalesce(func.sum(ActivityTransaction.amount), 0))
+        .filter(ActivityTransaction.transaction_direction == TransactionDirection.expense)
+        .scalar()
+        or 0
+    )
+    top_activities = []
+    activities = db.query(Activity).order_by(Activity.created_at.desc()).limit(20).all()
+    for activity in activities:
+        act_income = Decimal(
+            db.query(func.coalesce(func.sum(ActivityTransaction.amount), 0))
+            .filter(
+                ActivityTransaction.activity_id == activity.id,
+                ActivityTransaction.transaction_direction == TransactionDirection.income,
+            )
+            .scalar()
+            or 0
+        )
+        act_expense = Decimal(
+            db.query(func.coalesce(func.sum(ActivityTransaction.amount), 0))
+            .filter(
+                ActivityTransaction.activity_id == activity.id,
+                ActivityTransaction.transaction_direction == TransactionDirection.expense,
+            )
+            .scalar()
+            or 0
+        )
+        top_activities.append(
+            {
+                "id": activity.id,
+                "name": activity.name,
+                "income": act_income,
+                "expense": act_expense,
+                "balance": act_income - act_expense,
+            }
+        )
+    top_activities.sort(key=lambda item: item["income"], reverse=True)
+    return {
+        "activities_count": db.query(func.count(Activity.id)).scalar() or 0,
+        "total_income": income,
+        "total_expense": expense,
+        "balance": income - expense,
+        "top_activities": top_activities[:8],
+        "income_by_activity": [
+            {"id": item["id"], "name": item["name"], "amount": item["income"]}
+            for item in top_activities
+            if item["income"] > 0
+        ][:8],
+        "expense_by_activity": [
+            {"id": item["id"], "name": item["name"], "amount": item["expense"]}
+            for item in sorted(top_activities, key=lambda item: item["expense"], reverse=True)
+            if item["expense"] > 0
+        ][:8],
+    }
+
+
+@router.get("/fund-balances", response_model=list[dict])
+def fund_balances(_: FinanceOrAdminUser, db: DbSession) -> list[dict]:
+    from app.services import fund_balance
+
+    funds = db.query(DonationType).order_by(DonationType.type_name).all()
+    return [
+        {
+            "id": fund.id,
+            "type_name": fund.type_name,
+            **fund_balance(db, fund.id),
+        }
+        for fund in funds
+    ]
+

@@ -55,11 +55,30 @@ reports_router.SessionLocal = TestSessionLocal
 @pytest.fixture()
 def client(tmp_path) -> Generator[TestClient, None, None]:
     get_settings().report_storage_path = str(tmp_path / "reports")
-    Base.metadata.drop_all(test_engine)
-    Base.metadata.create_all(test_engine)
+    # File-backed SQLite is more reliable than bare in-memory across pooled connections.
+    db_path = tmp_path / "test.db"
+    file_engine = create_engine(
+        f"sqlite+pysqlite:///{db_path}",
+        connect_args={"check_same_thread": False},
+    )
+    FileSessionLocal = sessionmaker(
+        bind=file_engine,
+        autoflush=False,
+        autocommit=False,
+        expire_on_commit=False,
+    )
+    db_module.engine = file_engine
+    db_module.SessionLocal = FileSessionLocal
+    main_module.SessionLocal = FileSessionLocal
+    reports_router.SessionLocal = FileSessionLocal
+    global TestSessionLocal
+    TestSessionLocal = FileSessionLocal
+    Base.metadata.drop_all(file_engine)
+    Base.metadata.create_all(file_engine)
     with TestClient(app) as test_client:
         yield test_client
-    Base.metadata.drop_all(test_engine)
+    Base.metadata.drop_all(file_engine)
+    file_engine.dispose()
 
 
 @pytest.fixture()

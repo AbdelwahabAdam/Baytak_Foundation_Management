@@ -5,6 +5,7 @@ from sqlalchemy.orm import selectinload
 
 from app.dependencies import CurrentUser, DbSession, FinanceOrAdminUser
 from app.models import (
+    Activity,
     Donor,
     Donation,
     DonationNote,
@@ -12,7 +13,11 @@ from app.models import (
     DonationType,
 )
 from app.schemas import DonationCreate, DonationOut, DonationUpdate, Message, NoteCreate
-from app.services import add_audit_log
+from app.services import (
+    add_audit_log,
+    ensure_donation_activity_transaction,
+    remove_donation_activity_transaction,
+)
 
 router = APIRouter(prefix="/donations", tags=["Donations"])
 
@@ -21,6 +26,7 @@ def donation_query(db: DbSession):
     return db.query(Donation).options(
         selectinload(Donation.donor),
         selectinload(Donation.donation_type),
+        selectinload(Donation.activity),
         selectinload(Donation.notes),
     )
 
@@ -33,7 +39,11 @@ def get_donation_or_404(db: DbSession, donation_id: int) -> Donation:
 
 
 def validate_donation_references(
-    db: DbSession, donor_id: int, donation_type_id: int, allow_inactive_type: bool = False
+    db: DbSession,
+    donor_id: int,
+    donation_type_id: int,
+    activity_id: int | None = None,
+    allow_inactive_type: bool = False,
 ) -> None:
     donor = db.query(Donor).filter(Donor.id == donor_id, Donor.is_deleted.is_(False)).first()
     if not donor:
@@ -41,6 +51,10 @@ def validate_donation_references(
     donation_type = db.query(DonationType).filter(DonationType.id == donation_type_id).first()
     if not donation_type or (not donation_type.is_active and not allow_inactive_type):
         raise HTTPException(status_code=400, detail="Selected donation type is not active")
+    if activity_id is not None:
+        activity = db.query(Activity).filter(Activity.id == activity_id).first()
+        if not activity:
+            raise HTTPException(status_code=400, detail="Selected activity was not found")
 
 
 def validate_receipt(db: DbSession, receipt_number: str | None, donation_id: int | None = None) -> None:
@@ -61,6 +75,7 @@ def list_donations(
     amount_max: float | None = Query(default=None, ge=0),
     donation_type_id: int | None = Query(default=None),
     donor_id: int | None = Query(default=None),
+    activity_id: int | None = Query(default=None),
     start_date: datetime | None = Query(default=None),
     end_date: datetime | None = Query(default=None),
     donation_status: DonationStatus | None = Query(default=None, alias="status"),
@@ -76,6 +91,8 @@ def list_donations(
         query = query.filter(Donation.donation_type_id == donation_type_id)
     if donor_id:
         query = query.filter(Donation.donor_id == donor_id)
+    if activity_id:
+        query = query.filter(Donation.activity_id == activity_id)
     if start_date:
         query = query.filter(Donation.donation_date >= start_date)
     if end_date:
@@ -101,13 +118,18 @@ def list_donations(
 def create_donation(
     payload: DonationCreate, current_user: CurrentUser, db: DbSession
 ) -> Donation:
-    validate_donation_references(db, payload.donor_id, payload.donation_type_id)
+    validate_donation_references(
+        db, payload.donor_id, payload.donation_type_id, payload.activity_id
+    )
     validate_receipt(db, payload.receipt_number)
     values = payload.model_dump()
     values["currency"] = "EGP"
     donation = Donation(**values, created_by_user_id=current_user.id)
     db.add(donation)
     db.flush()
+    ensure_donation_activity_transaction(
+        db, donation=donation, created_by_user_id=current_user.id
+    )
     add_audit_log(
         db,
         actor_user_id=current_user.id,
@@ -118,6 +140,7 @@ def create_donation(
             "amount": str(donation.amount),
             "donor_id": donation.donor_id,
             "donation_type_id": donation.donation_type_id,
+            "activity_id": donation.activity_id,
         },
     )
     db.commit()
@@ -138,16 +161,26 @@ def update_donation(
     values["currency"] = "EGP"
     donor_id = values.get("donor_id", donation.donor_id)
     type_id = values.get("donation_type_id", donation.donation_type_id)
-    validate_donation_references(db, donor_id, type_id, allow_inactive_type=True)
+    activity_id = values.get("activity_id", donation.activity_id)
+    validate_donation_references(
+        db, donor_id, type_id, activity_id, allow_inactive_type=True
+    )
     validate_receipt(db, values.get("receipt_number", donation.receipt_number), donation.id)
     old_value = {
         "amount": str(donation.amount),
         "status": donation.status.value,
         "donor_id": donation.donor_id,
         "donation_type_id": donation.donation_type_id,
+        "activity_id": donation.activity_id,
     }
     for field, value in values.items():
         setattr(donation, field, value)
+    if donation.status != DonationStatus.confirmed or not donation.activity_id:
+        remove_donation_activity_transaction(db, donation.id)
+    else:
+        ensure_donation_activity_transaction(
+            db, donation=donation, created_by_user_id=approver.id
+        )
     add_audit_log(
         db,
         actor_user_id=approver.id,
@@ -170,6 +203,7 @@ def cancel_donation(
         raise HTTPException(status_code=400, detail="Donation is already cancelled")
     previous_status = donation.status.value
     donation.status = DonationStatus.cancelled
+    remove_donation_activity_transaction(db, donation.id)
     add_audit_log(
         db,
         actor_user_id=approver.id,

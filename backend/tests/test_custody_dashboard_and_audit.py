@@ -9,11 +9,19 @@ def test_custody_profiles_approvals_dashboard_and_audit(
     seeded_users,
 ) -> None:
     staff_id = seeded_users["staff"].id
+    fund = client.post(
+        "/api/v1/donation-types",
+        headers=admin_headers,
+        json={"type_name": "General Fund", "description": "Default", "is_active": True},
+    )
+    assert fund.status_code == 201, fund.text
+    fund_id = fund.json()["id"]
     assignment = client.post(
         "/api/v1/custody",
         headers=admin_headers,
         json={
             "user_id": staff_id,
+            "donation_type_id": fund_id,
             "amount": "500.00",
             "assigned_at": "2026-01-15T08:00:00Z",
             "description": "Field support",

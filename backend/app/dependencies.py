@@ -58,3 +58,4 @@ def require_roles(*allowed_roles: str) -> Callable:
 
 AdminUser = Annotated[User, Depends(require_roles("admin"))]
 FinanceOrAdminUser = Annotated[User, Depends(require_roles("admin", "finance"))]
+FinanceStaffOrAdmin = Annotated[User, Depends(require_roles("admin", "finance", "staff"))]

@@ -741,6 +741,18 @@ legend { color: #41584e; font-size: .77rem; font-weight: 700; padding: 0 5px; }
 .form-grid > label { display: grid; gap: 0; }
 .form-span-2 { grid-column: span 2; }
 .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; }
+.link-button {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  background: none;
+  border: 0;
+  padding: 0;
+  text-align: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.link-button small { color: var(--color-muted-text); }
 .form-error { color: var(--color-danger); font-size: .8rem; grid-column: 1 / -1; line-height: 1.4; }
 .success-notice { background: color-mix(in srgb, var(--color-success) 14%, var(--color-surface)); color: var(--color-success); font-size: .8rem; margin-top: 18px; padding: 10px 12px; }
 

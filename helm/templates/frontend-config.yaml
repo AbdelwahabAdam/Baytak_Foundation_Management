@@ -22,6 +22,7 @@ data:
   VITE_TAB_DONATION_TYPES: {{ .Values.frontendConfigmap.data.VITE_TAB_DONATION_TYPES | quote }}
   VITE_TAB_WAREHOUSE: {{ .Values.frontendConfigmap.data.VITE_TAB_WAREHOUSE | quote }}
   VITE_TAB_CASES: {{ .Values.frontendConfigmap.data.VITE_TAB_CASES | quote }}
+  VITE_TAB_ACTIVITIES: {{ .Values.frontendConfigmap.data.VITE_TAB_ACTIVITIES | quote }}
   VITE_TAB_CUSTODY: {{ .Values.frontendConfigmap.data.VITE_TAB_CUSTODY | quote }}
   VITE_TAB_APPROVALS: {{ .Values.frontendConfigmap.data.VITE_TAB_APPROVALS | quote }}
   VITE_TAB_REPORTS: {{ .Values.frontendConfigmap.data.VITE_TAB_REPORTS | quote }}
