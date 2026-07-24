@@ -103,6 +103,7 @@ frontendConfigmap:
     VITE_TAB_DONATION_TYPES: "Donation types"
     VITE_TAB_WAREHOUSE: "Warehouse"
     VITE_TAB_CASES: "Cases"
+    VITE_TAB_TASKS: "المهام"
     VITE_TAB_ACTIVITIES: "Activities"
     VITE_TAB_CUSTODY: "Custody"
     VITE_TAB_APPROVALS: "Approvals"

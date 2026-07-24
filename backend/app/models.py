@@ -46,6 +46,19 @@ class CasePriority(str, enum.Enum):
     urgent = "urgent"
 
 
+class TaskStatus(str, enum.Enum):
+    pending = "pending"
+    in_progress = "in_progress"
+    completed = "completed"
+    cancelled = "cancelled"
+
+
+class TaskPriority(str, enum.Enum):
+    low = "low"
+    medium = "medium"
+    high = "high"
+
+
 class ActivityStatus(str, enum.Enum):
     active = "active"
     inactive = "inactive"
@@ -453,6 +466,28 @@ class AidCase(TimestampMixin, Base):
     assigned_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), index=True)
     created_by: Mapped[User] = relationship(foreign_keys=[created_by_user_id])
     assigned_user: Mapped[User | None] = relationship(foreign_keys=[assigned_user_id])
+
+
+class Task(TimestampMixin, Base):
+    __tablename__ = "tasks"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    title: Mapped[str] = mapped_column(String(200), index=True)
+    description: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[TaskStatus] = mapped_column(
+        Enum(TaskStatus, name="task_status"),
+        default=TaskStatus.pending,
+        index=True,
+    )
+    priority: Mapped[TaskPriority] = mapped_column(
+        Enum(TaskPriority, name="task_priority"),
+        default=TaskPriority.medium,
+    )
+    due_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    assigned_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    created_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    assigned_user: Mapped[User] = relationship(foreign_keys=[assigned_user_id])
+    created_by: Mapped[User] = relationship(foreign_keys=[created_by_user_id])
 
 
 class Activity(TimestampMixin, Base):

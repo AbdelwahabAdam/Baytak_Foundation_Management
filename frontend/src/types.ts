@@ -223,3 +223,25 @@ export interface AidCase {
   created_at: string
   updated_at: string
 }
+
+export interface TaskUserBrief {
+  id: number
+  first_name: string
+  last_name: string
+  email: string
+}
+
+export interface Task {
+  id: number
+  title: string
+  description?: string | null
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled'
+  priority: 'low' | 'medium' | 'high'
+  due_date?: string | null
+  assigned_user_id: number
+  created_by_user_id: number
+  assigned_user: TaskUserBrief
+  created_by: TaskUserBrief
+  created_at: string
+  updated_at: string
+}

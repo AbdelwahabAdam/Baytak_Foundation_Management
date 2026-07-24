@@ -24,6 +24,7 @@ export const brand = {
     donationTypes: value('VITE_TAB_DONATION_TYPES', 'Donation types'),
     warehouse: value('VITE_TAB_WAREHOUSE', 'Warehouse'),
     cases: value('VITE_TAB_CASES', 'Cases'),
+    tasks: value('VITE_TAB_TASKS', 'المهام'),
     activities: value('VITE_TAB_ACTIVITIES', 'المشروعات'),
     custody: value('VITE_TAB_CUSTODY', 'Custody'),
     approvals: value('VITE_TAB_APPROVALS', 'Approvals'),

@@ -42,6 +42,9 @@ from app.models import (
     ReportType,
     Role,
     ScheduledReport,
+    Task,
+    TaskPriority,
+    TaskStatus,
     TransactionDirection,
     TransactionReferenceType,
     User,
@@ -571,6 +574,62 @@ def create_cases(db: Session, admin: User, staff: User) -> int:
     return created
 
 
+def create_tasks(db: Session, admin: User, users: dict[str, User]) -> int:
+    specs = [
+        (
+            "Prepare Education Program donor report",
+            "Compile confirmed donations linked to Education Program for the finance review.",
+            TaskStatus.in_progress,
+            TaskPriority.high,
+            users["sami@charity.local"],
+            NOW + timedelta(days=3),
+        ),
+        (
+            "Follow up medical caravan suppliers",
+            "Confirm medicine delivery dates and update the warehouse list.",
+            TaskStatus.pending,
+            TaskPriority.medium,
+            users["lina@charity.local"],
+            NOW + timedelta(days=5),
+        ),
+        (
+            "Review pending custody expenses",
+            "Check staff custody submissions and prepare notes for approvals.",
+            TaskStatus.pending,
+            TaskPriority.high,
+            users["finance@charity.local"],
+            NOW + timedelta(days=2),
+        ),
+        (
+            "Archive closed feeding cases",
+            "Mark completed food-aid cases and attach final notes.",
+            TaskStatus.completed,
+            TaskPriority.low,
+            users["sami@charity.local"],
+            NOW - timedelta(days=1),
+        ),
+    ]
+    created = 0
+    for title, description, status, priority, assignee, due_date in specs:
+        existing = db.scalar(select(Task).where(Task.title == title))
+        if existing:
+            continue
+        db.add(
+            Task(
+                title=title,
+                description=description,
+                status=status,
+                priority=priority,
+                due_date=due_date,
+                assigned_user_id=assignee.id,
+                created_by_user_id=admin.id,
+            )
+        )
+        created += 1
+    db.flush()
+    return created
+
+
 def create_scheduled_report(db: Session, admin: User) -> None:
     existing = db.scalar(
         select(ScheduledReport).where(ScheduledReport.name == "Monthly donation summary")
@@ -610,6 +669,7 @@ def seed(*, force: bool = False) -> None:
         custody_created = create_custody_data(db, users, donation_types, activities, admin)
         warehouse_created = create_warehouse(db)
         cases_created = create_cases(db, admin, staff)
+        tasks_created = create_tasks(db, admin, users)
         create_scheduled_report(db, admin)
 
         if not already:
@@ -628,6 +688,7 @@ def seed(*, force: bool = False) -> None:
                         "custody_assignments_created": custody_created,
                         "warehouse_created": warehouse_created,
                         "cases_created": cases_created,
+                        "tasks_created": tasks_created,
                     },
                 )
             )
@@ -643,7 +704,8 @@ def seed(*, force: bool = False) -> None:
             f"  activity_transactions_added={ledger_created}\n"
             f"  custody_assignments_added={custody_created}\n"
             f"  warehouse_items_added={warehouse_created}\n"
-            f"  cases_added={cases_created}"
+            f"  cases_added={cases_created}\n"
+            f"  tasks_added={tasks_created}"
         )
         print(f"Login password for all seeded users: {DEMO_PASSWORD}")
         print("Accounts: admin@charity.local, finance@charity.local, sami@charity.local, lina@charity.local, viewer@charity.local")

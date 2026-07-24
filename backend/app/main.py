@@ -23,6 +23,7 @@ from app.routers import (
     donations,
     donors,
     reports,
+    tasks,
     users,
     warehouse,
 )
@@ -168,3 +169,4 @@ app.include_router(reports.scheduled_router, prefix=api_prefix)
 app.include_router(audit.router, prefix=api_prefix)
 app.include_router(warehouse.router, prefix=api_prefix)
 app.include_router(cases.router, prefix=api_prefix)
+app.include_router(tasks.router, prefix=api_prefix)

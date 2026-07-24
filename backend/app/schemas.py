@@ -14,6 +14,8 @@ from app.models import (
     ExpenseStatus,
     ReportFormat,
     ReportType,
+    TaskPriority,
+    TaskStatus,
     TransactionDirection,
     TransactionReferenceType,
 )
@@ -469,6 +471,50 @@ class AidCaseOut(Schema):
     approved_amount: Decimal | None
     created_by_user_id: int
     assigned_user_id: int | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class TaskUserBrief(Schema):
+    id: int
+    first_name: str
+    last_name: str
+    email: str
+
+
+class TaskCreate(Schema):
+    title: str = Field(min_length=1, max_length=200)
+    description: str | None = None
+    status: TaskStatus = TaskStatus.pending
+    priority: TaskPriority = TaskPriority.medium
+    due_date: datetime | None = None
+    assigned_user_id: int
+
+
+class TaskUpdate(Schema):
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = None
+    status: TaskStatus | None = None
+    priority: TaskPriority | None = None
+    due_date: datetime | None = None
+    assigned_user_id: int | None = None
+
+
+class TaskStatusUpdate(Schema):
+    status: TaskStatus
+
+
+class TaskOut(Schema):
+    id: int
+    title: str
+    description: str | None
+    status: TaskStatus
+    priority: TaskPriority
+    due_date: datetime | None
+    assigned_user_id: int
+    created_by_user_id: int
+    assigned_user: TaskUserBrief
+    created_by: TaskUserBrief
     created_at: datetime
     updated_at: datetime
 
